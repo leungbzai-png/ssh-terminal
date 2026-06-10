@@ -11,6 +11,7 @@ const defaults: AppSettings = {
   scrollBack: 5000,
   confirmCloseWithActiveSessions: true,
   showCommandBar: true,
+  connectTimeoutSec: 15,
 };
 
 export const useSettings = defineStore("settings", () => {

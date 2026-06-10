@@ -154,7 +154,8 @@ func buildAuth(h hosts.Host) ([]ssh.AuthMethod, error) {
 }
 
 // Open establishes a new SSH session and begins streaming.
-func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int) error {
+// timeoutSec is the TCP+SSH handshake timeout; 0 or negative falls back to 15 s.
+func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int, timeoutSec int) error {
 	auth, err := buildAuth(h)
 	if err != nil {
 		return err
@@ -171,11 +172,14 @@ func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int) error {
 	if !strings.Contains(addr, ":") {
 		addr = fmt.Sprintf("%s:%d", addr, port)
 	}
+	if timeoutSec <= 0 {
+		timeoutSec = 15
+	}
 	cfg := &ssh.ClientConfig{
 		User:            h.User,
 		Auth:            auth,
 		HostKeyCallback: cb,
-		Timeout:         15 * time.Second,
+		Timeout:         time.Duration(timeoutSec) * time.Second,
 		ClientVersion:   "SSH-2.0-ssh-terminal",
 	}
 	client, err := ssh.Dial("tcp", addr, cfg)

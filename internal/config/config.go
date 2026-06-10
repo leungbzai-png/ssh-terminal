@@ -23,6 +23,8 @@ type Settings struct {
 	ConfirmCloseWithActiveSessions bool `json:"confirmCloseWithActiveSessions"`
 	// ShowCommandBar: show the FinalShell-style command input at the bottom of each terminal.
 	ShowCommandBar bool `json:"showCommandBar"`
+	// ConnectTimeoutSec is the TCP+SSH handshake timeout in seconds.
+	ConnectTimeoutSec int `json:"connectTimeoutSec"`
 }
 
 func Defaults() Settings {
@@ -35,6 +37,7 @@ func Defaults() Settings {
 		ScrollBack:                     5000,
 		ConfirmCloseWithActiveSessions: true,
 		ShowCommandBar:                 true,
+		ConnectTimeoutSec:              15,
 	}
 }
 

@@ -57,6 +57,10 @@ async function save() {
           </div>
         </div>
         <div class="field">
+          <label>连接超时（秒）</label>
+          <input v-model.number="form.connectTimeoutSec" type="number" min="5" max="120" step="5" />
+        </div>
+        <div class="field">
           <label class="ck">
             <input type="checkbox" v-model="form.showCommandBar" />
             <span>显示命令输入栏（终端底部）</span>
