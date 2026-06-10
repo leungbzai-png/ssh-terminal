@@ -12,7 +12,7 @@
 | Version | **v0.3.0** |
 | Git tag | `v0.3.0` |
 | Branch | `main` |
-| Latest commit | (pending push) |
+| Latest commit | `addc6bf` — chore: release v0.3.0 |
 
 ---
 
