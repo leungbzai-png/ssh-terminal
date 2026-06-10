@@ -321,6 +321,33 @@ func (m *Manager) Delete(sessionID string, sshClient *ssh.Client, remotePath str
 	return c.Remove(remotePath)
 }
 
+// DeleteRecursive removes a remote file or directory tree recursively.
+// Rejected paths: empty, "/", or "." (safety guard).
+func (m *Manager) DeleteRecursive(sessionID string, sshClient *ssh.Client, remotePath string) error {
+	if remotePath == "" || remotePath == "/" || remotePath == "." {
+		return errors.New("refusing to delete root or empty path")
+	}
+	// Normalize: strip trailing slash.
+	for len(remotePath) > 1 && strings.HasSuffix(remotePath, "/") {
+		remotePath = remotePath[:len(remotePath)-1]
+	}
+	if remotePath == "/" {
+		return errors.New("refusing to delete root")
+	}
+	c, err := m.client(sessionID, sshClient)
+	if err != nil {
+		return err
+	}
+	fi, err := c.Stat(remotePath)
+	if err != nil {
+		return err
+	}
+	if !fi.IsDir() {
+		return c.Remove(remotePath)
+	}
+	return c.RemoveAll(remotePath)
+}
+
 // Mkdir creates a remote directory.
 func (m *Manager) Mkdir(sessionID string, sshClient *ssh.Client, remotePath string) error {
 	c, err := m.client(sessionID, sshClient)

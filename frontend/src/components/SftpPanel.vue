@@ -2,6 +2,8 @@
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useSessions } from "../stores/sessions";
 import type { FileEntry } from "../wails.d";
+import ConfirmDialog from "./ConfirmDialog.vue";
+import InputDialog from "./InputDialog.vue";
 
 const props = defineProps<{ tabId: string; paneId: string }>();
 const sessions = useSessions();
@@ -13,6 +15,11 @@ const error = ref<string>("");
 
 // Context menu state
 const ctx = ref<{ x: number; y: number; entry: FileEntry | null } | null>(null);
+
+// Dialog state — separate refs to avoid TypeScript narrowing issues in templates
+const pendingDeleteEntry = ref<FileEntry | null>(null);
+const showMkdirDialog = ref(false);
+const pendingRenameEntry = ref<FileEntry | null>(null);
 
 async function load(dir: string) {
   loading.value = true;
@@ -78,19 +85,34 @@ async function download(e: FileEntry) {
   }
 }
 
-async function remove(e: FileEntry) {
-  if (!confirm(`删除 ${e.name}？`)) return;
+function requestRemove(e: FileEntry) {
+  closeCtx();
+  pendingDeleteEntry.value = e;
+}
+
+async function confirmRemove() {
+  const entry = pendingDeleteEntry.value;
+  pendingDeleteEntry.value = null;
+  if (!entry) return;
   try {
-    await window.go.main.App.SftpDelete(props.tabId, e.path);
+    if (entry.isDir) {
+      await window.go.main.App.SftpDeleteRecursive(props.tabId, entry.path);
+    } else {
+      await window.go.main.App.SftpDelete(props.tabId, entry.path);
+    }
     await load(cwd.value);
   } catch (err: any) {
     error.value = String(err?.message || err);
   }
 }
 
-async function mkdir() {
-  const name = prompt("新文件夹名");
-  if (!name) return;
+function requestMkdir() {
+  closeCtx();
+  showMkdirDialog.value = true;
+}
+
+async function confirmMkdir(name: string) {
+  showMkdirDialog.value = false;
   const p = (cwd.value.endsWith("/") ? cwd.value : cwd.value + "/") + name;
   try {
     await window.go.main.App.SftpMkdir(props.tabId, p);
@@ -100,13 +122,19 @@ async function mkdir() {
   }
 }
 
-async function rename(e: FileEntry) {
-  const newName = prompt("重命名为：", e.name);
-  if (!newName || newName === e.name) return;
-  const dir = e.path.slice(0, e.path.lastIndexOf("/")) || "/";
+function requestRename(e: FileEntry) {
+  closeCtx();
+  pendingRenameEntry.value = e;
+}
+
+async function confirmRename(newName: string) {
+  const entry = pendingRenameEntry.value;
+  pendingRenameEntry.value = null;
+  if (!entry || newName === entry.name) return;
+  const dir = entry.path.slice(0, entry.path.lastIndexOf("/")) || "/";
   const newPath = (dir.endsWith("/") ? dir : dir + "/") + newName;
   try {
-    await window.go.main.App.SftpRename(props.tabId, e.path, newPath);
+    await window.go.main.App.SftpRename(props.tabId, entry.path, newPath);
     await load(cwd.value);
   } catch (err: any) {
     error.value = String(err?.message || err);
@@ -119,7 +147,6 @@ function copyPath(e: FileEntry) {
 
 async function cdInTerminal(e: FileEntry) {
   const target = e.isDir ? e.path : e.path.slice(0, e.path.lastIndexOf("/")) || "/";
-  // Send `cd '<path>'\n` to the terminal session.
   const safe = target.replace(/'/g, `'\\''`);
   await window.go.main.App.WriteSession(props.tabId, encodeUtf8B64(`cd '${safe}'\n`));
 }
@@ -134,6 +161,13 @@ function fmtSize(n: number) {
     i++;
   }
   return v.toFixed(v < 10 ? 1 : 0) + " " + u[i];
+}
+
+function deleteMessage(entry: FileEntry): string {
+  if (entry.isDir) {
+    return "将递归删除 " + entry.name + " 及其全部内容，此操作不可撤销。";
+  }
+  return "确认删除文件 " + entry.name + "？";
 }
 
 function openCtx(e: MouseEvent, entry: FileEntry | null) {
@@ -177,7 +211,7 @@ watch(
       <button class="icon-btn" title="上传文件 (也可直接拖入窗口)" @click="uploadFiles">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
       </button>
-      <button class="icon-btn" title="新建文件夹" @click="mkdir">
+      <button class="icon-btn" title="新建文件夹" @click="requestMkdir">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14h6"/></svg>
       </button>
     </header>
@@ -226,15 +260,47 @@ watch(
         <li @click="copyPath(ctx.entry!); closeCtx()">复制远程路径</li>
         <li v-if="!ctx.entry.isDir" @click="download(ctx.entry!); closeCtx()">下载…</li>
         <li class="sep" />
-        <li @click="rename(ctx.entry!); closeCtx()">重命名</li>
-        <li class="danger" @click="remove(ctx.entry!); closeCtx()">删除</li>
+        <li @click="requestRename(ctx.entry!)">重命名</li>
+        <li class="danger" @click="requestRemove(ctx.entry!)">删除</li>
       </template>
       <template v-else>
         <li @click="uploadFiles(); closeCtx()">上传文件…</li>
-        <li @click="mkdir(); closeCtx()">新建文件夹</li>
+        <li @click="requestMkdir()">新建文件夹</li>
         <li @click="load(cwd); closeCtx()">刷新</li>
       </template>
     </ul>
+
+    <!-- Delete confirm dialog -->
+    <ConfirmDialog
+      v-if="pendingDeleteEntry"
+      :title="pendingDeleteEntry.isDir ? '删除文件夹？' : '删除文件？'"
+      :message="deleteMessage(pendingDeleteEntry)"
+      confirmLabel="删除"
+      :danger="true"
+      @confirm="confirmRemove"
+      @cancel="pendingDeleteEntry = null"
+    />
+
+    <!-- New folder dialog -->
+    <InputDialog
+      v-if="showMkdirDialog"
+      title="新建文件夹"
+      placeholder="文件夹名"
+      confirmLabel="创建"
+      @confirm="confirmMkdir"
+      @cancel="showMkdirDialog = false"
+    />
+
+    <!-- Rename dialog -->
+    <InputDialog
+      v-if="pendingRenameEntry"
+      title="重命名"
+      placeholder="新名称"
+      :defaultValue="pendingRenameEntry.name"
+      confirmLabel="重命名"
+      @confirm="confirmRename"
+      @cancel="pendingRenameEntry = null"
+    />
   </aside>
 </template>
 
