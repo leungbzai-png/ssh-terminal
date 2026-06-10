@@ -1,7 +1,7 @@
 # Session Status — SSH Terminal
 
 **Last updated:** 2026-06-10  
-**Updated by:** Claude Sonnet 4.6 (Phase 5–7 documentation pass)
+**Updated by:** Claude Sonnet 4.6 (v0.3.0 development start)
 
 ---
 
@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| Version | **v0.2.0** |
-| Git tag | `v0.2.0` |
+| Version | **v0.3.0** |
+| Git tag | `v0.3.0` |
 | Branch | `main` |
-| Latest commit | `43d06f6` — fix: restore dist gitkeep after build |
+| Latest commit | (pending push) |
 
 ---
 
@@ -31,6 +31,7 @@
 
 | Release | Date | Status | Artifacts |
 |---------|------|--------|-----------|
+| v0.3.0 | 2026-06-10 | ✅ Published | `ssh-terminal-v0.3.0-windows-amd64.zip` |
 | v0.2.0 | 2026-06-10 | ✅ Published | `ssh-terminal-v0.2.0-windows-amd64.zip` (4.51 MB) |
 | v0.1.0 | 2025 | Historical only (not on GitHub) | — |
 
@@ -74,6 +75,23 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 - `docs/SESSION_STATUS.md` — this file
 - `docs/RELEASE_PROCESS.md` — step-by-step release guide
 
+### Post-v0.2.0 Patch — Tab Close Confirmation (completed 2026-06-10)
+- Created `frontend/src/components/ConfirmDialog.vue` — generic reusable confirm dialog
+- Modified `frontend/src/components/TabBar.vue` — per-tab close confirmation for active sessions
+- `go build ./...` and frontend build both verified passing
+- Windows zip rebuilt: `ssh-terminal-v0.2.0-windows-amd64.zip` (4.51 MB, includes feature)
+
+### v0.3.0 — Usability & Polish (completed 2026-06-10)
+- Created `frontend/src/components/InputDialog.vue` — generic reusable text-input dialog
+- Modified `frontend/src/components/SftpPanel.vue` — all `confirm()`/`prompt()` replaced with `ConfirmDialog`/`InputDialog`; recursive delete wired for dirs
+- Modified `internal/sftpx/sftpx.go` — added `DeleteRecursive` using `sftp.Client.RemoveAll` with empty/root safety guard
+- Modified `app.go` — added `SftpDeleteRecursive` API, reads `ConnectTimeoutSec` from settings for both `OpenSession` and `DeployPublicKeyToHost`
+- Modified `internal/sshsess/manager.go` — `Open()` accepts `timeoutSec int` parameter
+- Modified `internal/config/config.go` — added `ConnectTimeoutSec int` (default 15)
+- Modified `frontend/src/wails.d.ts` — added `SftpDeleteRecursive`, `connectTimeoutSec`
+- Modified `frontend/src/components/SettingsDialog.vue` — added "连接超时（秒）" field
+- Created `.github/workflows/ci.yml` — Go build+vet (Windows) + frontend build (Ubuntu)
+
 ---
 
 ## Known Issues (Open)
@@ -93,11 +111,12 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 
 ## Next Development Direction
 
-### Immediate (v0.3.0)
-1. Replace `prompt()`/`confirm()` in `SftpPanel.vue` with custom dialogs — most user-visible rough edge
-2. SFTP recursive delete
-3. Import hosts from `~/.ssh/config` — high value, commonly requested in similar tools
-4. GitHub Actions CI — important for project health
+### Next: v0.4.0 — Advanced SSH
+1. Import hosts from `~/.ssh/config`
+2. Quick connect (no-save temporary session)
+3. Host export/import (JSON backup)
+4. ProxyJump / bastion host support
+5. Session keep-alive (ServerAliveInterval)
 
 ### Medium Term (v0.4.0)
 5. ProxyJump / bastion host support

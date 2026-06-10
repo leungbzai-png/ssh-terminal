@@ -116,7 +116,7 @@ func (a *App) onFileDrop(x, y int, paths []string) {
 func (a *App) AppInfo() map[string]string {
 	return map[string]string{
 		"name":    "SSH Terminal",
-		"version": "0.2.0",
+		"version": "0.3.0",
 		"dataDir": portable.DataDir(),
 		"baseDir": portable.BaseDir(),
 	}
@@ -134,7 +134,8 @@ func (a *App) OpenSession(sessionID, hostID string, cols, rows int) error {
 	if err != nil {
 		return err
 	}
-	return a.ssh.Open(sessionID, h, cols, rows)
+	s := config.Load()
+	return a.ssh.Open(sessionID, h, cols, rows, s.ConnectTimeoutSec)
 }
 
 func (a *App) WriteSession(sessionID string, dataB64 string) error {
@@ -259,6 +260,13 @@ func (a *App) SftpDelete(sessionID, remotePath string) error {
 	}
 	return a.sftp.Delete(sessionID, c, remotePath)
 }
+func (a *App) SftpDeleteRecursive(sessionID, remotePath string) error {
+	c, err := a.ssh.Client(sessionID)
+	if err != nil {
+		return err
+	}
+	return a.sftp.DeleteRecursive(sessionID, c, remotePath)
+}
 func (a *App) SftpMkdir(sessionID, remotePath string) error {
 	c, err := a.ssh.Client(sessionID)
 	if err != nil {
@@ -337,11 +345,16 @@ func (a *App) DeployPublicKeyToHost(hostID, keyID string) error {
 	if !strings.Contains(addr, ":") {
 		addr = fmt.Sprintf("%s:%d", addr, port)
 	}
+	s := config.Load()
+	timeoutSec := s.ConnectTimeoutSec
+	if timeoutSec <= 0 {
+		timeoutSec = 15
+	}
 	cfg := &ssh.ClientConfig{
 		User:            h.User,
 		Auth:            auth,
 		HostKeyCallback: cb,
-		Timeout:         15 * time.Second,
+		Timeout:         time.Duration(timeoutSec) * time.Second,
 		ClientVersion:   "SSH-2.0-ssh-terminal-deploy",
 	}
 	client, err := ssh.Dial("tcp", addr, cfg)

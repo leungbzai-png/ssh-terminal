@@ -1,6 +1,6 @@
 # Product Roadmap — SSH Terminal
 
-Last updated: 2026-06-10 (v0.2.0 released)
+Last updated: 2026-06-10 (v0.3.0 released)
 
 ---
 
@@ -88,20 +88,20 @@ Scoring: **Benefit** 1–5 (user value), **Difficulty** 1–5 (engineering effor
 
 ## Version Roadmap
 
-### v0.3.0 — Usability & Polish
+### v0.3.0 — Usability & Polish ✅ Released 2026-06-10
 **Theme:** Fix rough edges, common workflow improvements
 
-- [ ] Replace SFTP `prompt()`/`confirm()` with custom in-app dialogs
-- [ ] SFTP recursive directory delete
-- [ ] Import hosts from `~/.ssh/config`
-- [ ] Quick connect (temporary session without saving host)
-- [ ] Configurable per-host connection timeout
-- [ ] Host export/import (JSON backup)
-- [ ] GitHub Actions CI: `go vet` + build check on every push
-- [ ] Unify UI language (all Chinese, or offer language setting)
+- [x] Replace SFTP `prompt()`/`confirm()` with custom in-app dialogs (`ConfirmDialog` + `InputDialog`)
+- [x] SFTP recursive directory delete (with root-path safety guard)
+- [x] Configurable connection timeout (global setting, 5–120 s, default 15 s)
+- [x] GitHub Actions CI: `go vet` + build on Windows; frontend type-check + build on Ubuntu
+- [ ] Import hosts from `~/.ssh/config` — deferred to v0.4.0
+- [ ] Quick connect (temporary session without saving host) — deferred to v0.4.0
+- [ ] Host export/import (JSON backup) — deferred to v0.4.0
+- [ ] Unify UI language — deferred to v0.5.0
 
 **Breaking changes:** None  
-**Estimated effort:** 3–4 weeks solo
+**Actual effort:** 1 session
 
 ---
 

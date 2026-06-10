@@ -36,6 +36,7 @@ declare global {
           SftpUpload: (sessionID: string, local: string, remote: string) => Promise<void>;
           SftpUploadPaths: (sessionID: string, localPaths: string[], remoteDir: string) => Promise<void>;
           SftpDelete: (sessionID: string, remote: string) => Promise<void>;
+          SftpDeleteRecursive: (sessionID: string, remote: string) => Promise<void>;
           SftpMkdir: (sessionID: string, remote: string) => Promise<void>;
           SftpRename: (sessionID: string, oldPath: string, newPath: string) => Promise<void>;
 
@@ -64,6 +65,7 @@ export interface AppSettings {
   scrollBack: number;
   confirmCloseWithActiveSessions: boolean;
   showCommandBar: boolean;
+  connectTimeoutSec: number;
 }
 
 export interface HostRecord {
