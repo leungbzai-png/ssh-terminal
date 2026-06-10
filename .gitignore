@@ -1,0 +1,12 @@
+build/bin/
+frontend/dist/*
+!frontend/dist/.gitkeep
+frontend/node_modules/
+frontend/wailsjs/
+data/
+*.exe
+*.zip
+frontend/package.json.md5
+.vscode/
+.idea/
+.claude/

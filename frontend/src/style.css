@@ -1,0 +1,291 @@
+/* ---------- Design tokens ----------
+   Refined minimal aesthetic. Two themes share the same hue language,
+   inverted across L. xterm.js reads the same vars via JS so the
+   terminal stays visually fused with the chrome.
+------------------------------------- */
+
+:root,
+:root[data-theme="dark"] {
+  --bg: #111216;
+  --bg-elev: #16181d;
+  --bg-elev-2: #1c1f26;
+  --bg-hover: #20242d;
+  --bg-active: #262b36;
+  --border: #2a2f3a;
+  --border-strong: #353b48;
+  --fg: #e4e6eb;
+  --fg-muted: #9aa0ac;
+  --fg-subtle: #6b7280;
+  --accent: #7dd3fc;     /* cyan-300, calm */
+  --accent-fg: #001019;
+  --danger: #fb7185;
+  --success: #86efac;
+  --warning: #fcd34d;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --radius: 6px;
+  --radius-sm: 4px;
+
+  /* terminal palette - solarized-influenced but cooler */
+  --t-bg: var(--bg);
+  --t-fg: #d8dee9;
+  --t-cursor: #7dd3fc;
+  --t-selection: #2d4a5e;
+  --t-black: #1c1f26;
+  --t-red: #fb7185;
+  --t-green: #86efac;
+  --t-yellow: #fcd34d;
+  --t-blue: #93c5fd;
+  --t-magenta: #c4b5fd;
+  --t-cyan: #7dd3fc;
+  --t-white: #d8dee9;
+  --t-bright-black: #4b5263;
+  --t-bright-red: #fda4af;
+  --t-bright-green: #bbf7d0;
+  --t-bright-yellow: #fde68a;
+  --t-bright-blue: #bfdbfe;
+  --t-bright-magenta: #ddd6fe;
+  --t-bright-cyan: #a5f3fc;
+  --t-bright-white: #f3f4f6;
+}
+
+:root[data-theme="light"] {
+  --bg: #fafbfc;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #f3f4f6;
+  --bg-hover: #eceef1;
+  --bg-active: #e4e7eb;
+  --border: #e4e6ea;
+  --border-strong: #cfd2d8;
+  --fg: #1c1f26;
+  --fg-muted: #5b6271;
+  --fg-subtle: #8a92a1;
+  --accent: #0284c7;
+  --accent-fg: #ffffff;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warning: #d97706;
+
+  --shadow-sm: 0 1px 2px rgba(10, 20, 40, 0.06);
+  --shadow-md: 0 4px 16px rgba(10, 20, 40, 0.08);
+  --shadow-lg: 0 16px 48px rgba(10, 20, 40, 0.12);
+
+  --t-bg: #ffffff;
+  --t-fg: #1c1f26;
+  --t-cursor: #0284c7;
+  --t-selection: #cfe6f4;
+  --t-black: #1c1f26;
+  --t-red: #dc2626;
+  --t-green: #16a34a;
+  --t-yellow: #b45309;
+  --t-blue: #2563eb;
+  --t-magenta: #7c3aed;
+  --t-cyan: #0891b2;
+  --t-white: #4b5263;
+  --t-bright-black: #6b7280;
+  --t-bright-red: #ef4444;
+  --t-bright-green: #22c55e;
+  --t-bright-yellow: #ca8a04;
+  --t-bright-blue: #3b82f6;
+  --t-bright-magenta: #8b5cf6;
+  --t-bright-cyan: #06b6d4;
+  --t-bright-white: #1c1f26;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Inter", "Segoe UI", "Helvetica Neue", -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+button:hover {
+  background: var(--bg-hover);
+}
+button:active {
+  background: var(--bg-active);
+}
+button.primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+button.primary:hover {
+  filter: brightness(1.08);
+  background: var(--accent);
+}
+button.ghost {
+  border-color: var(--border);
+}
+button.danger {
+  color: var(--danger);
+}
+button.danger:hover {
+  background: color-mix(in oklab, var(--danger) 12%, transparent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  outline: none;
+  transition: border-color 0.1s ease, box-shadow 0.1s ease;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-subtle);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+}
+.icon-btn:hover {
+  color: var(--fg);
+}
+
+.kbd {
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  color: var(--fg-muted);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  animation: fade 0.12s ease-out;
+}
+.modal {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  min-width: 420px;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: auto;
+  animation: pop 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.modal-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.modal-body {
+  padding: 18px;
+}
+.modal-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.field > label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-subtle);
+}
+.field-row {
+  display: flex;
+  gap: 8px;
+}
+.field-row > .field {
+  flex: 1;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
