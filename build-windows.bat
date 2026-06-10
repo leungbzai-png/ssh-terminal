@@ -47,6 +47,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM Vite's clean build deletes frontend/dist/.gitkeep; restore it so git status stays clean.
+type nul > "frontend\dist\.gitkeep"
+
 echo.
 echo === Done ===
 echo Output: build\bin\ssh-terminal.exe
