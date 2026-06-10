@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useSessions, type Pane } from "../stores/sessions";
 import { useHosts } from "../stores/hosts";
+import ConfirmDialog from "./ConfirmDialog.vue";
 
 const props = defineProps<{ pane: Pane }>();
 const emit = defineEmits<{ (e: "close-pane"): void }>();
@@ -17,6 +18,7 @@ const activeTab = computed(() =>
 );
 
 const ctx = ref<{ x: number; y: number; tabId: string } | null>(null);
+const pendingCloseTabId = ref<string | null>(null);
 
 function dotClass(status: string) {
   return status === "open"
@@ -43,9 +45,21 @@ function duplicate(tabId: string) {
   if (h) sessions.openInActivePane(h);
   closeCtx();
 }
-function closeTab(tabId: string) {
-  sessions.closeTab(tabId);
+function requestCloseTab(tabId: string) {
   closeCtx();
+  const t = sessions.tabs[tabId];
+  if (t && (t.status === "open" || t.status === "connecting")) {
+    pendingCloseTabId.value = tabId;
+  } else {
+    sessions.closeTab(tabId);
+  }
+}
+
+function confirmClose() {
+  if (pendingCloseTabId.value) {
+    sessions.closeTab(pendingCloseTabId.value);
+    pendingCloseTabId.value = null;
+  }
 }
 
 onMounted(() => window.addEventListener("click", closeCtx));
@@ -65,7 +79,7 @@ onUnmounted(() => window.removeEventListener("click", closeCtx));
       >
         <span class="tab-dot" :class="dotClass(t.status)" />
         <span class="tab-label">{{ t.hostName }}</span>
-        <button class="tab-close icon-btn" @click.stop="sessions.closeTab(t.id)">
+        <button class="tab-close icon-btn" @click.stop="requestCloseTab(t.id)">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
@@ -106,8 +120,18 @@ onUnmounted(() => window.removeEventListener("click", closeCtx));
       <li @click="reconnect(ctx.tabId)">重新连接</li>
       <li @click="duplicate(ctx.tabId)">克隆此会话</li>
       <li class="sep" />
-      <li class="danger" @click="closeTab(ctx.tabId)">关闭标签</li>
+      <li class="danger" @click="requestCloseTab(ctx.tabId)">关闭标签</li>
     </ul>
+
+    <ConfirmDialog
+      v-if="pendingCloseTabId"
+      title="关闭会话？"
+      message="此 SSH 会话仍在连接中，关闭后会断开连接。"
+      confirmLabel="关闭"
+      :danger="true"
+      @confirm="confirmClose"
+      @cancel="pendingCloseTabId = null"
+    />
   </div>
 </template>
 
