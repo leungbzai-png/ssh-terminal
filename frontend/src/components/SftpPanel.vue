@@ -268,8 +268,6 @@ function onCtxOutside(e: MouseEvent) {
   if (ctx.value && !(e.target as HTMLElement).closest(".sftp")) closeCtx();
 }
 
-const progressEvt = `sftp:xfer:progress:${props.tabId}`;
-const doneEvt = `sftp:xfer:done:${props.tabId}`;
 function onXferProgress(p: { transferred: number; total: number; current: string; direction: string }) {
   const pct = p.total > 0 ? Math.floor((p.transferred / p.total) * 100) : 0;
   xfer.value = { dir: p.direction, pct, current: p.current || "" };
@@ -285,6 +283,24 @@ function onXferDone(r: { ok: boolean; err: string; direction: string }) {
   }
 }
 
+// The SFTP panel instance is reused when the active tab changes within a pane
+// (prop changes, no remount — see the props.tabId watch below), so the xfer
+// event subscription must follow the current tabId rather than being captured
+// once at mount. Wails EventsOff(name) is safe here: only this panel listens on
+// the sftp:xfer:* namespace.
+let boundTab = "";
+function bindXfer(tabId: string) {
+  boundTab = tabId;
+  window.runtime.EventsOn(`sftp:xfer:progress:${tabId}`, onXferProgress);
+  window.runtime.EventsOn(`sftp:xfer:done:${tabId}`, onXferDone);
+}
+function unbindXfer() {
+  if (!boundTab) return;
+  window.runtime.EventsOff(`sftp:xfer:progress:${boundTab}`);
+  window.runtime.EventsOff(`sftp:xfer:done:${boundTab}`);
+  boundTab = "";
+}
+
 function onWindowClick() {
   closeCtx();
   showBookmarks.value = false;
@@ -294,16 +310,25 @@ onMounted(() => {
   load("");
   window.addEventListener("click", onWindowClick);
   window.addEventListener("contextmenu", onCtxOutside);
-  window.runtime.EventsOn(progressEvt, onXferProgress);
-  window.runtime.EventsOn(doneEvt, onXferDone);
+  bindXfer(props.tabId);
 });
 onBeforeUnmount(() => {
   window.removeEventListener("click", onWindowClick);
   window.removeEventListener("contextmenu", onCtxOutside);
-  window.runtime.EventsOff(progressEvt);
-  window.runtime.EventsOff(doneEvt);
+  unbindXfer();
 });
-watch(() => props.tabId, () => load(""));
+watch(
+  () => props.tabId,
+  (nv) => {
+    // Instance is reused across tab switches: re-point the xfer subscription and
+    // reset per-tab transient UI so progress/bookmarks don't bleed across tabs.
+    unbindXfer();
+    xfer.value = null;
+    showBookmarks.value = false;
+    bindXfer(nv);
+    load("");
+  }
+);
 watch(
   () => sessions.sftpRefreshTick[props.tabId],
   () => load(cwd.value)
