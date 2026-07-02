@@ -13,6 +13,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/leungbzai-png/ssh-terminal/internal/bookmarks"
 	"github.com/leungbzai-png/ssh-terminal/internal/config"
 	"github.com/leungbzai-png/ssh-terminal/internal/hosts"
 	"github.com/leungbzai-png/ssh-terminal/internal/keymgr"
@@ -640,6 +641,21 @@ func (a *App) SftpUploadTracked(sessionID string, localPaths []string, remoteDir
 	done(err)
 	return err
 }
+
+// --- Remote path bookmarks (v0.7.0) ---
+
+// ListBookmarks returns a host's remote-path bookmarks (non-secret).
+func (a *App) ListBookmarks(hostID string) ([]bookmarks.Bookmark, error) {
+	return bookmarks.List(hostID)
+}
+
+// AddBookmark saves a remote path for a host. name defaults to the path.
+func (a *App) AddBookmark(hostID, name, remotePath string) (bookmarks.Bookmark, error) {
+	return bookmarks.Add(hostID, name, remotePath)
+}
+
+// DeleteBookmark removes a bookmark by id.
+func (a *App) DeleteBookmark(id string) error { return bookmarks.Delete(id) }
 
 func (a *App) SftpDelete(sessionID, remotePath string) error {
 	c, err := a.ssh.Client(sessionID)

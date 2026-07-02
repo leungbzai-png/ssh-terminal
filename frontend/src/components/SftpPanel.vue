@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useSessions } from "../stores/sessions";
-import type { FileEntry } from "../wails.d";
+import type { FileEntry, Bookmark } from "../wails.d";
 import ConfirmDialog from "./ConfirmDialog.vue";
 import InputDialog from "./InputDialog.vue";
 
@@ -15,6 +15,60 @@ const error = ref<string>("");
 
 // Transfer progress (upload/download) via the dedicated sftp:xfer:* events.
 const xfer = ref<{ dir: string; pct: number; current: string } | null>(null);
+
+// Remote path bookmarks (per saved host). Quick Connect tabs have no hostId.
+const hostId = computed(() => sessions.tabs[props.tabId]?.hostId || "");
+const bookmarks = ref<Bookmark[]>([]);
+const showBookmarks = ref(false);
+const showAddBookmark = ref(false);
+
+async function loadBookmarks() {
+  if (!hostId.value) {
+    bookmarks.value = [];
+    return;
+  }
+  try {
+    bookmarks.value = (await window.go.main.App.ListBookmarks(hostId.value)) || [];
+  } catch {
+    bookmarks.value = [];
+  }
+}
+
+function toggleBookmarks() {
+  showBookmarks.value = !showBookmarks.value;
+  if (showBookmarks.value) loadBookmarks();
+}
+
+const defaultBookmarkName = computed(() => {
+  const p = cwd.value.replace(/\/+$/, "");
+  const seg = p.slice(p.lastIndexOf("/") + 1);
+  return seg || p || "/";
+});
+
+function jumpBookmark(b: Bookmark) {
+  showBookmarks.value = false;
+  load(b.path);
+}
+
+async function confirmAddBookmark(name: string) {
+  showAddBookmark.value = false;
+  if (!hostId.value) return;
+  try {
+    await window.go.main.App.AddBookmark(hostId.value, name, cwd.value);
+    await loadBookmarks();
+  } catch (e: any) {
+    error.value = String(e?.message || e);
+  }
+}
+
+async function removeBookmark(b: Bookmark) {
+  try {
+    await window.go.main.App.DeleteBookmark(b.id);
+    await loadBookmarks();
+  } catch (e: any) {
+    error.value = String(e?.message || e);
+  }
+}
 
 // Context menu state
 const ctx = ref<{ x: number; y: number; entry: FileEntry | null } | null>(null);
@@ -202,15 +256,20 @@ function onXferDone(r: { ok: boolean; err: string; direction: string }) {
   }
 }
 
+function onWindowClick() {
+  closeCtx();
+  showBookmarks.value = false;
+}
+
 onMounted(() => {
   load("");
-  window.addEventListener("click", closeCtx);
+  window.addEventListener("click", onWindowClick);
   window.addEventListener("contextmenu", onCtxOutside);
   window.runtime.EventsOn(progressEvt, onXferProgress);
   window.runtime.EventsOn(doneEvt, onXferDone);
 });
 onBeforeUnmount(() => {
-  window.removeEventListener("click", closeCtx);
+  window.removeEventListener("click", onWindowClick);
   window.removeEventListener("contextmenu", onCtxOutside);
   window.runtime.EventsOff(progressEvt);
   window.runtime.EventsOff(doneEvt);
@@ -238,6 +297,28 @@ watch(
       <button class="icon-btn" title="新建文件夹" @click="requestMkdir">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14h6"/></svg>
       </button>
+      <button class="icon-btn" :class="{ on: showBookmarks }" title="远程路径书签" @click.stop="toggleBookmarks">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+      </button>
+
+      <div v-if="showBookmarks" class="bm-menu" @click.stop>
+        <div v-if="!hostId" class="bm-empty">快速连接会话不支持书签（仅限已保存主机）。</div>
+        <template v-else>
+          <button class="bm-add" @click="showAddBookmark = true">＋ 添加当前路径</button>
+          <div v-if="bookmarks.length === 0" class="bm-empty">暂无书签。</div>
+          <ul v-else class="bm-list">
+            <li v-for="b in bookmarks" :key="b.id">
+              <span class="bm-jump" :title="b.path" @click="jumpBookmark(b)">
+                <span class="bm-name">{{ b.name }}</span>
+                <span class="bm-path">{{ b.path }}</span>
+              </span>
+              <button class="icon-btn bm-del" title="删除书签" @click.stop="removeBookmark(b)">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            </li>
+          </ul>
+        </template>
+      </div>
     </header>
     <div class="body">
       <div v-if="error" class="error">{{ error }}</div>
@@ -332,6 +413,17 @@ watch(
       @confirm="confirmRename"
       @cancel="pendingRenameEntry = null"
     />
+
+    <!-- Add bookmark dialog -->
+    <InputDialog
+      v-if="showAddBookmark"
+      title="添加书签"
+      placeholder="书签名称"
+      :defaultValue="defaultBookmarkName"
+      confirmLabel="添加"
+      @confirm="confirmAddBookmark"
+      @cancel="showAddBookmark = false"
+    />
   </aside>
 </template>
 
@@ -346,12 +438,85 @@ watch(
   min-height: 0;
 }
 header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+}
+.bm-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 8px;
+  z-index: 60;
+  width: 250px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+}
+.bm-add {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--accent);
+}
+.bm-empty {
+  padding: 8px;
+  font-size: 11.5px;
+  color: var(--fg-muted);
+}
+.bm-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.bm-list li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+}
+.bm-list li:hover {
+  background: var(--bg-hover);
+}
+.bm-jump {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+.bm-name {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bm-path {
+  font-size: 10.5px;
+  color: var(--fg-muted);
+  font-family: var(--mono, monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bm-del {
+  width: 20px;
+  height: 20px;
+  opacity: 0.5;
+}
+.bm-del:hover {
+  opacity: 1;
+  color: var(--danger);
 }
 .path {
   flex: 1;

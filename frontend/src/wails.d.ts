@@ -57,6 +57,10 @@ declare global {
           GetOpenTabs: () => Promise<OpenTabRef[]>;
           SaveOpenTabs: (tabs: OpenTabRef[]) => Promise<void>;
 
+          ListBookmarks: (hostId: string) => Promise<Bookmark[]>;
+          AddBookmark: (hostId: string, name: string, remotePath: string) => Promise<Bookmark>;
+          DeleteBookmark: (id: string) => Promise<void>;
+
           PickFileToUpload: () => Promise<string>;
           PickFilesToUpload: () => Promise<string[]>;
           PickSaveLocation: (suggested: string) => Promise<string>;
@@ -150,6 +154,15 @@ export interface HostsImportResult {
 export interface OpenTabRef {
   hostId: string;
   hostName: string;
+}
+
+// Non-secret remote-path bookmark for a host.
+export interface Bookmark {
+  id: string;
+  hostId: string;
+  name: string;
+  path: string;
+  createdAt: number;
 }
 
 export interface HostRecord {
