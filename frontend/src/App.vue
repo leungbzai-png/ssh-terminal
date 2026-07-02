@@ -13,7 +13,8 @@ import CloseConfirmDialog from "./components/CloseConfirmDialog.vue";
 import KeysDialog from "./components/KeysDialog.vue";
 import QuickConnectDialog from "./components/QuickConnectDialog.vue";
 import ImportConfigDialog from "./components/ImportConfigDialog.vue";
-import type { HostRecord, QuickConnectParams } from "./wails.d";
+import ImportHostsDialog from "./components/ImportHostsDialog.vue";
+import type { HostRecord, QuickConnectParams, HostsImportPreview, HostsImportResult } from "./wails.d";
 
 const settings = useSettings();
 const hostsStore = useHosts();
@@ -25,6 +26,7 @@ const showSettings = ref(false);
 const showKeys = ref(false);
 const showQuick = ref(false);
 const showImport = ref(false);
+const hostsImportPreview = ref<HostsImportPreview | null>(null);
 
 // Close confirmation
 const closeConfirmCount = ref<number | null>(null);
@@ -172,6 +174,34 @@ async function onImported(count: number) {
     console.info(`Imported ${count} host(s) from ssh config`);
   }
 }
+async function exportHosts() {
+  try {
+    const path = await window.go.main.App.ExportHosts();
+    if (path) alert(`已导出主机到:\n${path}\n（不含密码/口令/私钥）`);
+  } catch (e: any) {
+    alert("导出失败: " + (e?.message || e));
+  }
+}
+async function openImportHosts() {
+  try {
+    const preview = await window.go.main.App.PreviewHostsImport();
+    if (!preview || !preview.path) return; // cancelled
+    if (!preview.hosts || preview.hosts.length === 0) {
+      alert("文件中没有可导入的主机。");
+      return;
+    }
+    hostsImportPreview.value = preview;
+  } catch (e: any) {
+    alert("无法读取导入文件: " + (e?.message || e));
+  }
+}
+async function onHostsImported(res: HostsImportResult) {
+  hostsImportPreview.value = null;
+  await hostsStore.refresh();
+  console.info(
+    `Imported ${res.imported}, overwrote ${res.overwritten}, skipped ${res.skipped}`
+  );
+}
 function confirmCloseProceed() {
   closeConfirmCount.value = null;
   window.go.main.App.ConfirmQuit();
@@ -187,6 +217,8 @@ const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
       @new="newHost"
       @quick="showQuick = true"
       @import="showImport = true"
+      @export-hosts="exportHosts"
+      @import-hosts="openImportHosts"
       @edit="editHost"
       @open="openHost"
       @delete="(id) => hostsStore.remove(id)"
@@ -228,6 +260,12 @@ const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
       v-if="showImport"
       @imported="onImported"
       @close="showImport = false"
+    />
+    <ImportHostsDialog
+      v-if="hostsImportPreview"
+      :preview="hostsImportPreview"
+      @imported="onHostsImported"
+      @close="hostsImportPreview = null"
     />
     <HostKeyDialog />
 

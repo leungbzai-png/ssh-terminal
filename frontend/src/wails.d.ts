@@ -43,9 +43,14 @@ declare global {
 
           ListKeys: () => Promise<ManagedKey[]>;
           GenerateKey: (name: string, comment: string, keyType: string, rsaBits: number, passphrase: string) => Promise<ManagedKey>;
+          ImportPrivateKey: (name: string, comment: string, keyPath: string, passphrase: string) => Promise<ManagedKey>;
           DeleteKey: (id: string) => Promise<void>;
           GetPublicKey: (id: string) => Promise<string>;
           DeployPublicKeyToHost: (hostId: string, keyId: string) => Promise<void>;
+
+          ExportHosts: () => Promise<string>;
+          PreviewHostsImport: () => Promise<HostsImportPreview>;
+          ImportHosts: (entries: SafeHost[], overwrite: boolean) => Promise<HostsImportResult>;
 
           PickFileToUpload: () => Promise<string>;
           PickFilesToUpload: () => Promise<string[]>;
@@ -104,6 +109,36 @@ export interface SshConfigImportResult {
   imported: number;
   skipped: number;
   names: string[];
+}
+
+// Safe host export/import: non-secret host metadata only (no password,
+// passphrase, or private-key material).
+export interface SafeHost {
+  name: string;
+  address: string;
+  port: number;
+  user: string;
+  authType: "password" | "key" | "managedKey";
+  keyPath?: string;
+  managedKeyId?: string;
+  group?: string;
+  note?: string;
+}
+
+export interface HostImportPreviewEntry extends SafeHost {
+  duplicate: boolean;
+  keyExists: boolean;
+}
+
+export interface HostsImportPreview {
+  path: string;
+  hosts: HostImportPreviewEntry[];
+}
+
+export interface HostsImportResult {
+  imported: number;
+  skipped: number;
+  overwritten: number;
 }
 
 export interface HostRecord {

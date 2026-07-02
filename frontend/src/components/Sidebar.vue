@@ -7,12 +7,17 @@ const emit = defineEmits<{
   (e: "new"): void;
   (e: "quick"): void;
   (e: "import"): void;
+  (e: "exportHosts"): void;
+  (e: "importHosts"): void;
   (e: "edit", h: HostRecord): void;
   (e: "open", h: HostRecord): void;
   (e: "delete", id: string): void;
   (e: "settings"): void;
   (e: "keys"): void;
 }>();
+
+// Virtual group name for hosts without an explicit group.
+const UNGROUPED = "Ungrouped";
 
 const query = ref("");
 
@@ -29,11 +34,16 @@ const grouped = computed(() => {
     : props.hosts;
   const map = new Map<string, HostRecord[]>();
   for (const h of filtered) {
-    const g = h.group?.trim() || "Default";
+    const g = h.group?.trim() || UNGROUPED;
     if (!map.has(g)) map.set(g, []);
     map.get(g)!.push(h);
   }
-  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  // Alphabetical, but keep the virtual "Ungrouped" group last.
+  return [...map.entries()].sort((a, b) => {
+    if (a[0] === UNGROUPED) return 1;
+    if (b[0] === UNGROUPED) return -1;
+    return a[0].localeCompare(b[0]);
+  });
 });
 
 const menuFor = ref<string | null>(null);
@@ -111,6 +121,16 @@ const menuFor = ref<string | null>(null);
         <button class="ghost" @click="emit('import')" title="从 ~/.ssh/config 导入">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4M4 19h16"/></svg>
           导入配置
+        </button>
+      </div>
+      <div class="foot-row">
+        <button class="ghost" @click="emit('exportHosts')" title="导出主机（安全，不含密码或私钥）">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M8 13l4 4 4-4M4 5h16"/></svg>
+          导出主机
+        </button>
+        <button class="ghost" @click="emit('importHosts')" title="从安全导出文件导入主机">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4M4 19h16"/></svg>
+          导入主机
         </button>
       </div>
     </footer>

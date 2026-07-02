@@ -10,6 +10,7 @@ const emit = defineEmits<{
 
 const form = reactive<HostRecord>({ ...props.host });
 const managedKeys = ref<ManagedKey[]>([]);
+const groups = ref<string[]>([]);
 
 async function pickKey() {
   const p = await window.go.main.App.PickPrivateKey();
@@ -27,6 +28,12 @@ async function save() {
 onMounted(async () => {
   try {
     managedKeys.value = (await window.go.main.App.ListKeys()) || [];
+  } catch {}
+  try {
+    const all = (await window.go.main.App.ListHosts()) || [];
+    groups.value = [
+      ...new Set(all.map((h) => (h.group || "").trim()).filter((g) => g)),
+    ].sort();
   } catch {}
 });
 </script>
@@ -100,7 +107,10 @@ onMounted(async () => {
         <div class="field-row">
           <div class="field">
             <label>分组</label>
-            <input v-model="form.group" placeholder="Production" />
+            <input v-model="form.group" list="host-groups" placeholder="Production（留空为 Ungrouped）" />
+            <datalist id="host-groups">
+              <option v-for="g in groups" :key="g" :value="g" />
+            </datalist>
           </div>
           <div class="field">
             <label>备注</label>

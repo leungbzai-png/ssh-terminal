@@ -196,10 +196,10 @@ func (a *App) PreviewSshConfig(path string) ([]SshConfigPreviewEntry, error) {
 	return out, nil
 }
 
-// isDuplicateHost reports whether an ssh_config entry matches an existing host
-// by address + port + user (case-insensitive on address/user).
-func isDuplicateHost(existing []hosts.Host, e sshconfig.Entry) bool {
-	port := e.Port
+// findDuplicateHostID returns the ID of an existing host matching address+port+user
+// (case-insensitive on address/user), or "", false when none matches. Port 0 is
+// treated as 22 on both sides.
+func findDuplicateHostID(existing []hosts.Host, address string, port int, user string) (string, bool) {
 	if port == 0 {
 		port = 22
 	}
@@ -208,12 +208,19 @@ func isDuplicateHost(existing []hosts.Host, e sshconfig.Entry) bool {
 		if hp == 0 {
 			hp = 22
 		}
-		if strings.EqualFold(h.Address, e.HostName) && hp == port &&
-			strings.EqualFold(h.User, e.User) {
-			return true
+		if strings.EqualFold(h.Address, address) && hp == port &&
+			strings.EqualFold(h.User, user) {
+			return h.ID, true
 		}
 	}
-	return false
+	return "", false
+}
+
+// isDuplicateHost reports whether an ssh_config entry matches an existing host
+// by address + port + user (case-insensitive on address/user).
+func isDuplicateHost(existing []hosts.Host, e sshconfig.Entry) bool {
+	_, ok := findDuplicateHostID(existing, e.HostName, e.Port, e.User)
+	return ok
 }
 
 // ImportSshConfig saves the given entries as hosts. Entries whose HostName+Port+User
@@ -253,6 +260,143 @@ func (a *App) ImportSshConfig(entries []sshconfig.Entry) (SshConfigImportResult,
 		existing = append(existing, saved)
 		res.Imported++
 		res.Names = append(res.Names, saved.Name)
+	}
+	return res, nil
+}
+
+// --- Safe host export / import (v0.5.0) ---
+
+// HostImportPreviewEntry augments an incoming SafeHost with import-time metadata:
+// whether it duplicates an already-saved host (address+port+user) and, for
+// key-auth hosts, whether the referenced external key path currently exists.
+type HostImportPreviewEntry struct {
+	hosts.SafeHost
+	Duplicate bool `json:"duplicate"`
+	KeyExists bool `json:"keyExists"`
+}
+
+// HostsImportPreview is returned by PreviewHostsImport: the picked file path plus
+// the annotated hosts to be shown to the user before any change is made.
+type HostsImportPreview struct {
+	Path  string                   `json:"path"`
+	Hosts []HostImportPreviewEntry `json:"hosts"`
+}
+
+// HostsImportResult summarizes an import run.
+type HostsImportResult struct {
+	Imported    int `json:"imported"`
+	Skipped     int `json:"skipped"`
+	Overwritten int `json:"overwritten"`
+}
+
+// ExportHosts writes a safe (no-secrets) host export to a user-chosen file and
+// returns the saved path. The export contains only whitelisted, non-secret host
+// metadata — never a password, passphrase, or private-key material. Returns ""
+// (no error) if the user cancels the save dialog.
+func (a *App) ExportHosts() (string, error) {
+	data, err := hosts.MarshalExport()
+	if err != nil {
+		return "", err
+	}
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "导出主机（安全，不含密码或私钥）",
+		DefaultFilename: "ssh-terminal-hosts.json",
+	})
+	if err != nil {
+		return "", err
+	}
+	if path == "" {
+		return "", nil // user cancelled
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// PreviewHostsImport lets the user pick a safe-export file and returns its parsed,
+// annotated contents WITHOUT modifying anything. Returns an empty preview (path
+// "") if the user cancels.
+func (a *App) PreviewHostsImport() (HostsImportPreview, error) {
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: "选择要导入的主机文件"})
+	if err != nil {
+		return HostsImportPreview{}, err
+	}
+	if path == "" {
+		return HostsImportPreview{}, nil // user cancelled
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return HostsImportPreview{}, err
+	}
+	exp, err := hosts.ParseExport(data)
+	if err != nil {
+		return HostsImportPreview{}, err
+	}
+	existing, err := hosts.List()
+	if err != nil {
+		return HostsImportPreview{}, err
+	}
+	out := HostsImportPreview{Path: path, Hosts: make([]HostImportPreviewEntry, 0, len(exp.Hosts))}
+	for _, sh := range exp.Hosts {
+		_, dup := findDuplicateHostID(existing, sh.Address, sh.Port, sh.User)
+		entry := HostImportPreviewEntry{SafeHost: sh, Duplicate: dup}
+		if sh.AuthType == "key" && sh.KeyPath != "" {
+			if _, statErr := os.Stat(sh.KeyPath); statErr == nil {
+				entry.KeyExists = true
+			}
+		}
+		out.Hosts = append(out.Hosts, entry)
+	}
+	return out, nil
+}
+
+// ImportHosts saves the given safe hosts. Duplicates (address+port+user) are
+// skipped unless overwrite is true, in which case the existing record is updated
+// in place. New hosts always receive a freshly minted ID. Imported hosts carry
+// no secrets — passwords/passphrases must be added by the user afterwards. When
+// overwriting, an existing encrypted password is preserved (never wiped).
+func (a *App) ImportHosts(entries []hosts.SafeHost, overwrite bool) (HostsImportResult, error) {
+	existing, err := hosts.List()
+	if err != nil {
+		return HostsImportResult{}, err
+	}
+	res := HostsImportResult{}
+	for _, e := range entries {
+		if e.Address == "" || e.User == "" {
+			res.Skipped++
+			continue
+		}
+		dupID, dup := findDuplicateHostID(existing, e.Address, e.Port, e.User)
+		h := hosts.Host{
+			Name:         e.Name,
+			Address:      e.Address,
+			Port:         e.Port,
+			User:         e.User,
+			AuthType:     e.AuthType,
+			KeyPath:      e.KeyPath,
+			ManagedKeyID: e.ManagedKeyID,
+			Group:        e.Group,
+			Note:         e.Note,
+		}
+		if dup {
+			if !overwrite {
+				res.Skipped++
+				continue
+			}
+			h.ID = dupID // update existing record in place (preserves stored secret)
+			if _, uErr := hosts.Upsert(h); uErr != nil {
+				return res, uErr
+			}
+			res.Overwritten++
+			continue
+		}
+		saved, uErr := hosts.Upsert(h) // empty ID -> fresh ID
+		if uErr != nil {
+			return res, uErr
+		}
+		existing = append(existing, saved)
+		res.Imported++
 	}
 	return res, nil
 }
@@ -483,6 +627,14 @@ func (a *App) GenerateKey(name, comment, keyType string, rsaBits int, passphrase
 }
 
 func (a *App) DeleteKey(id string) error { return keymgr.Delete(id) }
+
+// ImportPrivateKey imports an existing private key file into the managed key
+// store, encrypting it to data/keys/<id>.key.enc. The plaintext key is read on
+// the Go side only (never crosses the bridge); the passphrase, if any, is used
+// solely to validate a protected key and is never persisted.
+func (a *App) ImportPrivateKey(name, comment, keyPath, passphrase string) (keymgr.Key, error) {
+	return keymgr.ImportFromFile(name, comment, keyPath, passphrase)
+}
 
 func (a *App) GetPublicKey(id string) (string, error) { return keymgr.PublicKey(id) }
 

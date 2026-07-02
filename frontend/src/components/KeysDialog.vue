@@ -18,6 +18,14 @@ const form = reactive({
   passphrase: "",
 });
 
+const importForm = reactive({
+  name: "",
+  comment: "",
+  path: "",
+  passphrase: "",
+});
+const importing = ref(false);
+
 const showPubFor = ref<string | null>(null);
 const deployFor = ref<ManagedKey | null>(null);
 const hostsCache = ref<HostRecord[]>([]);
@@ -57,6 +65,43 @@ async function generate() {
     error.value = String(e?.message || e);
   } finally {
     generating.value = false;
+  }
+}
+
+async function pickImportKey() {
+  try {
+    const p = await window.go.main.App.PickPrivateKey();
+    if (p) importForm.path = p;
+  } catch {}
+}
+
+async function importKey() {
+  if (!importForm.name.trim()) {
+    alert("请填写密钥名称");
+    return;
+  }
+  if (!importForm.path.trim()) {
+    alert("请选择私钥文件");
+    return;
+  }
+  importing.value = true;
+  error.value = "";
+  try {
+    await window.go.main.App.ImportPrivateKey(
+      importForm.name.trim(),
+      importForm.comment.trim(),
+      importForm.path.trim(),
+      importForm.passphrase
+    );
+    importForm.name = "";
+    importForm.comment = "";
+    importForm.path = "";
+    importForm.passphrase = "";
+    await refresh();
+  } catch (e: any) {
+    error.value = String(e?.message || e);
+  } finally {
+    importing.value = false;
   }
 }
 
@@ -151,6 +196,38 @@ onMounted(() => {
           </div>
         </section>
 
+        <!-- Import existing private key -->
+        <section class="generator">
+          <h4>导入已有私钥</h4>
+          <div class="gen-grid">
+            <div class="field">
+              <label>名称</label>
+              <input v-model="importForm.name" placeholder="例如：old-server-key" />
+            </div>
+            <div class="field">
+              <label>注释 (可选)</label>
+              <input v-model="importForm.comment" placeholder="imported" />
+            </div>
+            <div class="field" style="grid-column: span 2">
+              <label>私钥文件</label>
+              <div style="display: flex; gap: 6px">
+                <input v-model="importForm.path" placeholder="选择私钥文件…" style="flex: 1" readonly />
+                <button type="button" class="ghost" @click="pickImportKey">浏览...</button>
+              </div>
+            </div>
+            <div class="field" style="grid-column: span 2">
+              <label>口令 (如私钥已加密)</label>
+              <input v-model="importForm.passphrase" type="password" placeholder="未加密可留空" />
+            </div>
+          </div>
+          <small class="hint">私钥将立即加密保存为 <code>.key.enc</code>，绝不以明文写入 data/；口令仅用于校验，不会被保存。</small>
+          <div class="gen-actions">
+            <button type="button" class="primary" :disabled="importing" @click="importKey">
+              {{ importing ? "导入中…" : "导入私钥" }}
+            </button>
+          </div>
+        </section>
+
         <!-- Existing keys -->
         <section class="keylist">
           <h4>已有密钥 ({{ keys.length }})</h4>
@@ -231,6 +308,17 @@ h4 {
   margin-top: 12px;
   display: flex;
   justify-content: flex-end;
+}
+.hint {
+  display: block;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+.hint code {
+  font-family: var(--mono, monospace);
+  font-size: 10.5px;
 }
 
 .error { padding: 8px 10px; background: color-mix(in oklab, var(--danger) 12%, transparent); color: var(--danger); border-radius: var(--radius-sm); font-size: 12px; }
