@@ -18,6 +18,7 @@ import (
 	"github.com/leungbzai-png/ssh-terminal/internal/keymgr"
 	"github.com/leungbzai-png/ssh-terminal/internal/portable"
 	"github.com/leungbzai-png/ssh-terminal/internal/sftpx"
+	"github.com/leungbzai-png/ssh-terminal/internal/sshconfig"
 	"github.com/leungbzai-png/ssh-terminal/internal/sshsess"
 )
 
@@ -128,6 +129,133 @@ func (a *App) SaveSettings(s config.Settings) error { return config.Save(s) }
 func (a *App) ListHosts() ([]hosts.Host, error)            { return hosts.List() }
 func (a *App) UpsertHost(h hosts.Host) (hosts.Host, error) { return hosts.Upsert(h) }
 func (a *App) DeleteHost(id string) error                  { return hosts.Delete(id) }
+
+// SshConfigPreviewEntry augments a parsed ssh_config entry with import-time
+// metadata: whether its IdentityFile exists on disk and whether it duplicates
+// an already-saved host. IdentityFile here is the ~-expanded absolute path.
+type SshConfigPreviewEntry struct {
+	sshconfig.Entry
+	IdentityExists bool `json:"identityExists"`
+	Duplicate      bool `json:"duplicate"`
+}
+
+// SshConfigImportResult summarizes an import run.
+type SshConfigImportResult struct {
+	Imported int      `json:"imported"`
+	Skipped  int      `json:"skipped"`
+	Names    []string `json:"names"`
+}
+
+// DefaultSshConfigPath returns the conventional ~/.ssh/config path (may be "").
+func (a *App) DefaultSshConfigPath() string { return sshconfig.DefaultPath() }
+
+// PickSshConfig lets the user browse for an ssh config file.
+func (a *App) PickSshConfig() (string, error) {
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: "Select SSH config file"})
+}
+
+// PreviewSshConfig parses the ssh config at path (or the default location when
+// path is empty) and returns entries annotated with existence/duplicate flags.
+// It never modifies anything.
+func (a *App) PreviewSshConfig(path string) ([]SshConfigPreviewEntry, error) {
+	if path == "" {
+		path = sshconfig.DefaultPath()
+	}
+	if path == "" {
+		return nil, fmt.Errorf("无法确定 ~/.ssh/config 路径")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	entries, err := sshconfig.Parse(f)
+	if err != nil {
+		return nil, err
+	}
+	existing, err := hosts.List()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SshConfigPreviewEntry, 0, len(entries))
+	for _, e := range entries {
+		if e.IdentityFile != "" {
+			e.IdentityFile = sshconfig.ExpandUser(e.IdentityFile)
+		}
+		pe := SshConfigPreviewEntry{Entry: e}
+		if e.IdentityFile != "" {
+			if _, statErr := os.Stat(e.IdentityFile); statErr == nil {
+				pe.IdentityExists = true
+			} else {
+				pe.Warnings = append(pe.Warnings, "密钥文件不存在: "+e.IdentityFile)
+			}
+		}
+		pe.Duplicate = isDuplicateHost(existing, e)
+		out = append(out, pe)
+	}
+	return out, nil
+}
+
+// isDuplicateHost reports whether an ssh_config entry matches an existing host
+// by address + port + user (case-insensitive on address/user).
+func isDuplicateHost(existing []hosts.Host, e sshconfig.Entry) bool {
+	port := e.Port
+	if port == 0 {
+		port = 22
+	}
+	for _, h := range existing {
+		hp := h.Port
+		if hp == 0 {
+			hp = 22
+		}
+		if strings.EqualFold(h.Address, e.HostName) && hp == port &&
+			strings.EqualFold(h.User, e.User) {
+			return true
+		}
+	}
+	return false
+}
+
+// ImportSshConfig saves the given entries as hosts. Entries whose HostName+Port+User
+// already exist are skipped (never overwritten). IdentityFile is referenced by
+// path only — no private key is copied into data/ and nothing is decrypted.
+func (a *App) ImportSshConfig(entries []sshconfig.Entry) (SshConfigImportResult, error) {
+	existing, err := hosts.List()
+	if err != nil {
+		return SshConfigImportResult{}, err
+	}
+	res := SshConfigImportResult{}
+	for _, e := range entries {
+		if e.HostName == "" {
+			e.HostName = e.Alias
+		}
+		if isDuplicateHost(existing, e) {
+			res.Skipped++
+			continue
+		}
+		h := hosts.Host{
+			Name:     e.Alias,
+			Address:  e.HostName,
+			Port:     e.Port,
+			User:     e.User,
+			AuthType: "password",
+		}
+		if e.IdentityFile != "" {
+			// Reference the external key file directly; do NOT copy or decrypt it.
+			h.AuthType = "key"
+			h.KeyPath = sshconfig.ExpandUser(e.IdentityFile)
+		}
+		saved, uErr := hosts.Upsert(h)
+		if uErr != nil {
+			return res, uErr
+		}
+		// Track newly-saved host so later entries in the same batch dedupe against it.
+		existing = append(existing, saved)
+		res.Imported++
+		res.Names = append(res.Names, saved.Name)
+	}
+	return res, nil
+}
 
 func (a *App) OpenSession(sessionID, hostID string, cols, rows int) error {
 	h, err := hosts.Get(hostID)

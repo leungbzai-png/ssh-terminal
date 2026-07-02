@@ -51,6 +51,11 @@ declare global {
           PickFilesToUpload: () => Promise<string[]>;
           PickSaveLocation: (suggested: string) => Promise<string>;
           PickPrivateKey: () => Promise<string>;
+
+          DefaultSshConfigPath: () => Promise<string>;
+          PickSshConfig: () => Promise<string>;
+          PreviewSshConfig: (path: string) => Promise<SshConfigPreviewEntry[]>;
+          ImportSshConfig: (entries: SshConfigEntry[]) => Promise<SshConfigImportResult>;
         };
       };
     };
@@ -79,6 +84,26 @@ export interface QuickConnectParams {
   password?: string;
   keyPath?: string;
   passphrase?: string;
+}
+
+export interface SshConfigEntry {
+  alias: string;
+  hostName: string;
+  user: string;
+  port: number;
+  identityFile: string;
+  warnings: string[];
+}
+
+export interface SshConfigPreviewEntry extends SshConfigEntry {
+  identityExists: boolean;
+  duplicate: boolean;
+}
+
+export interface SshConfigImportResult {
+  imported: number;
+  skipped: number;
+  names: string[];
 }
 
 export interface HostRecord {

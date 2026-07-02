@@ -12,6 +12,7 @@ import HostKeyDialog from "./components/HostKeyDialog.vue";
 import CloseConfirmDialog from "./components/CloseConfirmDialog.vue";
 import KeysDialog from "./components/KeysDialog.vue";
 import QuickConnectDialog from "./components/QuickConnectDialog.vue";
+import ImportConfigDialog from "./components/ImportConfigDialog.vue";
 import type { HostRecord, QuickConnectParams } from "./wails.d";
 
 const settings = useSettings();
@@ -23,6 +24,7 @@ const editingHost = ref<HostRecord | null>(null);
 const showSettings = ref(false);
 const showKeys = ref(false);
 const showQuick = ref(false);
+const showImport = ref(false);
 
 // Close confirmation
 const closeConfirmCount = ref<number | null>(null);
@@ -162,6 +164,14 @@ async function quickConnect(params: QuickConnectParams, remember: boolean) {
     sessions.openQuickInActivePane(params);
   }
 }
+async function onImported(count: number) {
+  showImport.value = false;
+  await hostsStore.refresh();
+  if (count > 0) {
+    // Non-blocking confirmation; kept simple.
+    console.info(`Imported ${count} host(s) from ssh config`);
+  }
+}
 function confirmCloseProceed() {
   closeConfirmCount.value = null;
   window.go.main.App.ConfirmQuit();
@@ -176,6 +186,7 @@ const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
       :hosts="hostsStore.hosts"
       @new="newHost"
       @quick="showQuick = true"
+      @import="showImport = true"
       @edit="editHost"
       @open="openHost"
       @delete="(id) => hostsStore.remove(id)"
@@ -212,6 +223,11 @@ const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
       v-if="showQuick"
       @connect="quickConnect"
       @cancel="showQuick = false"
+    />
+    <ImportConfigDialog
+      v-if="showImport"
+      @imported="onImported"
+      @close="showImport = false"
     />
     <HostKeyDialog />
 

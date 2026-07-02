@@ -6,6 +6,7 @@ const props = defineProps<{ hosts: HostRecord[] }>();
 const emit = defineEmits<{
   (e: "new"): void;
   (e: "quick"): void;
+  (e: "import"): void;
   (e: "edit", h: HostRecord): void;
   (e: "open", h: HostRecord): void;
   (e: "delete", id: string): void;
@@ -102,10 +103,16 @@ const menuFor = ref<string | null>(null);
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
         快速连接
       </button>
-      <button class="ghost full" @click="emit('new')">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        新增主机
-      </button>
+      <div class="foot-row">
+        <button class="ghost" @click="emit('new')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          新增主机
+        </button>
+        <button class="ghost" @click="emit('import')" title="从 ~/.ssh/config 导入">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4M4 19h16"/></svg>
+          导入配置
+        </button>
+      </div>
     </footer>
   </aside>
 </template>
@@ -242,5 +249,17 @@ footer {
   align-items: center;
   justify-content: center;
   gap: 6px;
+}
+.foot-row {
+  display: flex;
+  gap: 6px;
+}
+.foot-row button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 12px;
 }
 </style>
