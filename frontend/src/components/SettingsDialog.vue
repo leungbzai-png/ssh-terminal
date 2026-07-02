@@ -7,6 +7,11 @@ const settings = useSettings();
 const form = reactive({ ...settings.settings });
 
 async function save() {
+  // Clamp font size to the shared bounds even if the user typed out of range.
+  form.fontSize = Math.max(
+    settings.FONT_MIN,
+    Math.min(settings.FONT_MAX, Math.round(Number(form.fontSize) || 14))
+  );
   await settings.save({ ...form });
   emit("close");
 }
@@ -27,12 +32,19 @@ async function save() {
         </div>
         <div class="field">
           <label>字体</label>
-          <input v-model="form.fontFamily" />
+          <input v-model="form.fontFamily" list="font-presets" />
+          <datalist id="font-presets">
+            <option value='"Cascadia Mono",Consolas,monospace' />
+            <option value='Consolas,"Courier New",monospace' />
+            <option value='"JetBrains Mono","Cascadia Code","Fira Code",Consolas,monospace' />
+            <option value='"Fira Code",Consolas,monospace' />
+            <option value="monospace" />
+          </datalist>
         </div>
         <div class="field-row">
           <div class="field">
-            <label>字号</label>
-            <input v-model.number="form.fontSize" type="number" min="9" max="28" />
+            <label>字号 (8–32)</label>
+            <input v-model.number="form.fontSize" type="number" min="8" max="32" />
           </div>
           <div class="field">
             <label>回滚行数</label>
