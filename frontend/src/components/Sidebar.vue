@@ -5,6 +5,7 @@ import type { HostRecord } from "../wails.d";
 const props = defineProps<{ hosts: HostRecord[] }>();
 const emit = defineEmits<{
   (e: "new"): void;
+  (e: "quick"): void;
   (e: "edit", h: HostRecord): void;
   (e: "open", h: HostRecord): void;
   (e: "delete", id: string): void;
@@ -97,9 +98,13 @@ const menuFor = ref<string | null>(null);
     </div>
 
     <footer>
+      <button class="primary full" @click="emit('quick')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+        快速连接
+      </button>
       <button class="ghost full" @click="emit('new')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        New host
+        新增主机
       </button>
     </footer>
   </aside>
@@ -227,6 +232,9 @@ header {
 footer {
   padding: 10px;
   border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .full {
   width: 100%;

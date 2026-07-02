@@ -150,6 +150,42 @@ func keepAliveSecFrom(s config.Settings) int {
 	return s.KeepAliveIntervalSec
 }
 
+// QuickConnectParams carries the ephemeral credentials for a Quick Connect
+// session. These are NEVER persisted to hosts.json; the plaintext password /
+// passphrase live only in memory for the lifetime of the request.
+type QuickConnectParams struct {
+	Address    string `json:"address"`
+	Port       int    `json:"port"`
+	User       string `json:"user"`
+	AuthType   string `json:"authType"` // "password" | "key" (external key file)
+	Password   string `json:"password,omitempty"`
+	KeyPath    string `json:"keyPath,omitempty"`
+	Passphrase string `json:"passphrase,omitempty"`
+}
+
+// SshOpenQuick opens a one-off SSH session from ephemeral credentials without
+// saving a host. It builds an in-memory hosts.Host (never written to disk) and
+// reuses the normal session path, so keepalive and known_hosts verification
+// apply identically. If the user wants to keep the host, the frontend calls
+// UpsertHost separately (which encrypts secrets); this method must not persist.
+func (a *App) SshOpenQuick(sessionID string, p QuickConnectParams, cols, rows int) error {
+	if p.Address == "" || p.User == "" {
+		return fmt.Errorf("address and user are required")
+	}
+	h := hosts.Host{
+		Name:       p.Address,
+		Address:    p.Address,
+		Port:       p.Port,
+		User:       p.User,
+		AuthType:   p.AuthType,
+		Password:   p.Password,
+		KeyPath:    p.KeyPath,
+		Passphrase: p.Passphrase,
+	}
+	s := config.Load()
+	return a.ssh.Open(sessionID, h, cols, rows, s.ConnectTimeoutSec, keepAliveSecFrom(s))
+}
+
 func (a *App) WriteSession(sessionID string, dataB64 string) error {
 	data, err := base64.StdEncoding.DecodeString(dataB64)
 	if err != nil {

@@ -23,6 +23,7 @@ declare global {
           DeleteHost: (id: string) => Promise<void>;
 
           OpenSession: (sessionID: string, hostID: string, cols: number, rows: number) => Promise<void>;
+          SshOpenQuick: (sessionID: string, params: QuickConnectParams, cols: number, rows: number) => Promise<void>;
           WriteSession: (sessionID: string, dataB64: string) => Promise<void>;
           ResizeSession: (sessionID: string, cols: number, rows: number) => Promise<void>;
           CloseSession: (sessionID: string) => Promise<void>;
@@ -68,6 +69,16 @@ export interface AppSettings {
   connectTimeoutSec: number;
   keepAliveEnabled: boolean;
   keepAliveIntervalSec: number;
+}
+
+export interface QuickConnectParams {
+  address: string;
+  port: number;
+  user: string;
+  authType: "password" | "key";
+  password?: string;
+  keyPath?: string;
+  passphrase?: string;
 }
 
 export interface HostRecord {

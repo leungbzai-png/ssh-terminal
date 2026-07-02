@@ -11,7 +11,8 @@ import SettingsDialog from "./components/SettingsDialog.vue";
 import HostKeyDialog from "./components/HostKeyDialog.vue";
 import CloseConfirmDialog from "./components/CloseConfirmDialog.vue";
 import KeysDialog from "./components/KeysDialog.vue";
-import type { HostRecord } from "./wails.d";
+import QuickConnectDialog from "./components/QuickConnectDialog.vue";
+import type { HostRecord, QuickConnectParams } from "./wails.d";
 
 const settings = useSettings();
 const hostsStore = useHosts();
@@ -21,6 +22,7 @@ const theme = useTheme();
 const editingHost = ref<HostRecord | null>(null);
 const showSettings = ref(false);
 const showKeys = ref(false);
+const showQuick = ref(false);
 
 // Close confirmation
 const closeConfirmCount = ref<number | null>(null);
@@ -137,6 +139,29 @@ function editHost(h: HostRecord) {
 function openHost(h: HostRecord) {
   sessions.openInActivePane(h);
 }
+async function quickConnect(params: QuickConnectParams, remember: boolean) {
+  showQuick.value = false;
+  if (remember) {
+    // Save the host through the normal encrypted path, then open it as a
+    // regular saved host (credentials read back from encrypted storage).
+    const saved = await window.go.main.App.UpsertHost({
+      id: "",
+      name: params.address,
+      address: params.address,
+      port: params.port || 22,
+      user: params.user,
+      authType: params.authType,
+      password: params.password,
+      keyPath: params.keyPath,
+      passphrase: params.passphrase,
+    });
+    await hostsStore.refresh();
+    sessions.openInActivePane(saved);
+  } else {
+    // Ephemeral: credentials stay in memory only, never persisted.
+    sessions.openQuickInActivePane(params);
+  }
+}
 function confirmCloseProceed() {
   closeConfirmCount.value = null;
   window.go.main.App.ConfirmQuit();
@@ -150,6 +175,7 @@ const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
     <Sidebar
       :hosts="hostsStore.hosts"
       @new="newHost"
+      @quick="showQuick = true"
       @edit="editHost"
       @open="openHost"
       @delete="(id) => hostsStore.remove(id)"
@@ -182,6 +208,11 @@ const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
 
     <SettingsDialog v-if="showSettings" @close="showSettings = false" />
     <KeysDialog v-if="showKeys" @close="showKeys = false" />
+    <QuickConnectDialog
+      v-if="showQuick"
+      @connect="quickConnect"
+      @cancel="showQuick = false"
+    />
     <HostKeyDialog />
 
     <CloseConfirmDialog

@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { HostRecord } from "../wails.d";
+import type { HostRecord, QuickConnectParams } from "../wails.d";
 
 export interface TabSession {
   id: string;
@@ -9,6 +9,9 @@ export interface TabSession {
   status: "connecting" | "open" | "closed" | "error";
   error?: string;
   showSftp: boolean;
+  // quick marks a Quick Connect tab whose credentials live only in memory
+  // (see quickParams) and are never persisted.
+  quick?: boolean;
 }
 
 export interface Pane {
@@ -33,6 +36,10 @@ export const useSessions = defineStore("sessions", () => {
   const sftpRefreshTick = ref<Record<string, number>>({});
   const reconnectTick = ref<Record<string, number>>({});
 
+  // Quick Connect ephemeral credentials, keyed by tab id. In-memory only —
+  // never persisted to hosts.json. Cleared when the tab closes.
+  const quickParams = ref<Record<string, QuickConnectParams>>({});
+
   const activePane = computed(() => panes.value.find((p) => p.id === activePaneId.value)!);
 
   function openInActivePane(host: HostRecord) {
@@ -44,6 +51,22 @@ export const useSessions = defineStore("sessions", () => {
       status: "connecting",
       showSftp: false,
     };
+    activePane.value.tabIds.push(tabId);
+    activePane.value.activeTabId = tabId;
+    return tabId;
+  }
+
+  function openQuickInActivePane(params: QuickConnectParams) {
+    const tabId = uid("t");
+    tabs.value[tabId] = {
+      id: tabId,
+      hostId: "",
+      hostName: params.address,
+      status: "connecting",
+      showSftp: false,
+      quick: true,
+    };
+    quickParams.value[tabId] = params;
     activePane.value.tabIds.push(tabId);
     activePane.value.activeTabId = tabId;
     return tabId;
@@ -82,6 +105,9 @@ export const useSessions = defineStore("sessions", () => {
     delete sftpCwd.value[tabId];
     delete sftpRefreshTick.value[tabId];
     delete reconnectTick.value[tabId];
+    // Drop ephemeral Quick Connect credentials so the temp password does not
+    // outlive the tab.
+    delete quickParams.value[tabId];
     if (panes.value.length > 1) {
       panes.value = panes.value.filter((p) => p.tabIds.length > 0);
       if (!panes.value.find((p) => p.id === activePaneId.value)) {
@@ -126,7 +152,9 @@ export const useSessions = defineStore("sessions", () => {
     sftpCwd,
     sftpRefreshTick,
     reconnectTick,
+    quickParams,
     openInActivePane,
+    openQuickInActivePane,
     setActiveTab,
     setTabStatus,
     toggleSftp,

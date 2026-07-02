@@ -65,7 +65,12 @@ async function startSession() {
   const rows = term.rows;
   sessions.setTabStatus(props.tabId, "connecting");
   try {
-    await window.go.main.App.OpenSession(props.tabId, tab.value!.hostId, cols, rows);
+    const quick = sessions.quickParams[props.tabId];
+    if (tab.value?.quick && quick) {
+      await window.go.main.App.SshOpenQuick(props.tabId, quick, cols, rows);
+    } else {
+      await window.go.main.App.OpenSession(props.tabId, tab.value!.hostId, cols, rows);
+    }
     sessions.setTabStatus(props.tabId, "open");
   } catch (e: any) {
     const msg = String(e?.message || e);
