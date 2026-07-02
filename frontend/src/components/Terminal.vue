@@ -27,6 +27,14 @@ const searchText = ref("");
 const caseSensitive = ref(false);
 const wholeWord = ref(false);
 const useRegex = ref(false);
+// Live match feedback from the SearchAddon (resultIndex is -1 when no match).
+const matchIndex = ref(-1);
+const matchCount = ref(0);
+const matchLabel = computed(() => {
+  if (!searchText.value) return "";
+  if (matchCount.value === 0) return "无匹配";
+  return `${matchIndex.value + 1}/${matchCount.value}`;
+});
 
 const tab = computed(() => sessions.tabs[props.tabId]);
 
@@ -123,8 +131,23 @@ function findPrev() {
 function closeSearch() {
   showSearch.value = false;
   search?.clearDecorations();
+  matchIndex.value = -1;
+  matchCount.value = 0;
   term?.focus();
 }
+
+// Live incremental search as the user types, so the no-match / count indicator
+// updates without waiting for Enter.
+watch(searchText, (v) => {
+  if (!search) return;
+  if (!v) {
+    search.clearDecorations();
+    matchIndex.value = -1;
+    matchCount.value = 0;
+    return;
+  }
+  search.findNext(v, searchOpts() as any);
+});
 function openSearch() {
   showSearch.value = true;
   nextTick(() => searchInput.value?.focus());
@@ -146,6 +169,24 @@ function onTermKey(domEvent: KeyboardEvent): boolean {
     openSearch();
     return false;
   }
+  // Font size: Ctrl+= / Ctrl++ (increase), Ctrl+- (decrease), Ctrl+0 (reset).
+  if (domEvent.ctrlKey && !domEvent.altKey && !domEvent.metaKey) {
+    if (domEvent.key === "=" || domEvent.key === "+") {
+      domEvent.preventDefault();
+      settings.bumpFontSize(1);
+      return false;
+    }
+    if (domEvent.key === "-" || domEvent.key === "_") {
+      domEvent.preventDefault();
+      settings.bumpFontSize(-1);
+      return false;
+    }
+    if (domEvent.key === "0") {
+      domEvent.preventDefault();
+      settings.resetFontSize();
+      return false;
+    }
+  }
   return true;
 }
 
@@ -164,6 +205,10 @@ onMounted(async () => {
   });
   fit = new FitAddon();
   search = new SearchAddon();
+  search.onDidChangeResults((e: any) => {
+    matchIndex.value = e?.resultIndex ?? -1;
+    matchCount.value = e?.resultCount ?? 0;
+  });
   term.loadAddon(fit);
   term.loadAddon(new WebLinksAddon());
   term.loadAddon(search);
@@ -244,6 +289,7 @@ onBeforeUnmount(async () => {
           spellcheck="false"
           @keydown="onSearchKey"
         />
+        <span class="match" :class="{ none: !!searchText && matchCount === 0 }">{{ matchLabel }}</span>
         <button type="button" class="icon-btn" :class="{ on: caseSensitive }" title="区分大小写 (Aa)" @click="caseSensitive = !caseSensitive">Aa</button>
         <button type="button" class="icon-btn" :class="{ on: wholeWord }" title="全字匹配" @click="wholeWord = !wholeWord">W</button>
         <button type="button" class="icon-btn" :class="{ on: useRegex }" title="正则" @click="useRegex = !useRegex">.*</button>
@@ -320,6 +366,17 @@ onBeforeUnmount(async () => {
 }
 .search-input::placeholder {
   color: var(--fg-subtle);
+}
+.match {
+  font-size: 11px;
+  color: var(--fg-muted);
+  min-width: 34px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.match.none {
+  color: var(--danger);
 }
 .icon-btn.on {
   background: var(--bg-active);
