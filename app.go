@@ -671,6 +671,38 @@ func (a *App) SftpDeleteRecursive(sessionID, remotePath string) error {
 	}
 	return a.sftp.DeleteRecursive(sessionID, c, remotePath)
 }
+// TextPreview is the result of a read-only text preview.
+type TextPreview struct {
+	Content  string `json:"content"`
+	Size     int64  `json:"size"`
+	TooLarge bool   `json:"tooLarge"`
+	Binary   bool   `json:"binary"`
+}
+
+// previewMaxBytes caps how much of a remote file is fetched for preview.
+const previewMaxBytes = 512 * 1024 // 512 KiB
+
+// SftpPreviewText fetches a small remote file for read-only preview. Files over
+// previewMaxBytes are reported as tooLarge (not read); non-UTF-8/binary files
+// are reported as binary (not shown). Never modifies the remote file.
+func (a *App) SftpPreviewText(sessionID, remotePath string) (TextPreview, error) {
+	c, err := a.ssh.Client(sessionID)
+	if err != nil {
+		return TextPreview{}, err
+	}
+	data, size, tooLarge, err := a.sftp.ReadFilePreview(sessionID, c, remotePath, previewMaxBytes)
+	if err != nil {
+		return TextPreview{}, err
+	}
+	if tooLarge {
+		return TextPreview{Size: size, TooLarge: true}, nil
+	}
+	if !sftpx.IsProbablyText(data) {
+		return TextPreview{Size: size, Binary: true}, nil
+	}
+	return TextPreview{Content: string(data), Size: size}, nil
+}
+
 func (a *App) SftpMkdir(sessionID, remotePath string) error {
 	c, err := a.ssh.Client(sessionID)
 	if err != nil {

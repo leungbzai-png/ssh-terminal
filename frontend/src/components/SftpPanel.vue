@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useSessions } from "../stores/sessions";
-import type { FileEntry, Bookmark } from "../wails.d";
+import type { FileEntry, Bookmark, TextPreview } from "../wails.d";
 import ConfirmDialog from "./ConfirmDialog.vue";
 import InputDialog from "./InputDialog.vue";
+import TextPreviewDialog from "./TextPreviewDialog.vue";
 
 const props = defineProps<{ tabId: string; paneId: string }>();
 const sessions = useSessions();
@@ -106,8 +107,36 @@ function up() {
   load(i <= 0 ? "/" : cwd.value.slice(0, i));
 }
 
+// Read-only text preview.
+const preview = ref<{ name: string; data: TextPreview } | null>(null);
+const previewing = ref(false);
+const TEXT_EXT = new Set([
+  "txt", "log", "md", "json", "yaml", "yml", "conf", "ini",
+  "sh", "py", "go", "js", "ts", "html", "css", "xml", "toml", "env", "cfg",
+]);
+function isTextFile(name: string): boolean {
+  const dot = name.lastIndexOf(".");
+  if (dot < 0) return false;
+  return TEXT_EXT.has(name.slice(dot + 1).toLowerCase());
+}
+
+async function previewFile(e: FileEntry) {
+  closeCtx();
+  if (e.isDir || previewing.value) return;
+  previewing.value = true;
+  try {
+    const data = await window.go.main.App.SftpPreviewText(props.tabId, e.path);
+    preview.value = { name: e.name, data };
+  } catch (err: any) {
+    error.value = String(err?.message || err);
+  } finally {
+    previewing.value = false;
+  }
+}
+
 function enter(e: FileEntry) {
   if (e.isDir) load(e.path);
+  else if (isTextFile(e.name)) previewFile(e);
 }
 
 function encodeUtf8B64(s: string) {
@@ -369,6 +398,7 @@ watch(
         <li v-else @click="cdInTerminal(ctx.entry!); closeCtx()">
           在终端打开所在目录
         </li>
+        <li v-if="!ctx.entry.isDir" @click="previewFile(ctx.entry!)">预览</li>
         <li @click="copyPath(ctx.entry!); closeCtx()">复制远程路径</li>
         <li v-if="!ctx.entry.isDir" @click="download(ctx.entry!); closeCtx()">下载…</li>
         <li class="sep" />
@@ -423,6 +453,14 @@ watch(
       confirmLabel="添加"
       @confirm="confirmAddBookmark"
       @cancel="showAddBookmark = false"
+    />
+
+    <!-- Text preview (read-only) -->
+    <TextPreviewDialog
+      v-if="preview"
+      :name="preview.name"
+      :preview="preview.data"
+      @close="preview = null"
     />
   </aside>
 </template>

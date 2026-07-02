@@ -38,6 +38,7 @@ declare global {
           SftpUploadPaths: (sessionID: string, localPaths: string[], remoteDir: string) => Promise<void>;
           SftpUploadTracked: (sessionID: string, localPaths: string[], remoteDir: string) => Promise<void>;
           SftpDownloadTracked: (sessionID: string, remote: string, local: string) => Promise<void>;
+          SftpPreviewText: (sessionID: string, remote: string) => Promise<TextPreview>;
           SftpDelete: (sessionID: string, remote: string) => Promise<void>;
           SftpDeleteRecursive: (sessionID: string, remote: string) => Promise<void>;
           SftpMkdir: (sessionID: string, remote: string) => Promise<void>;
@@ -179,6 +180,13 @@ export interface HostRecord {
   group?: string;
   note?: string;
   updatedAt?: number;
+}
+
+export interface TextPreview {
+  content: string;
+  size: number;
+  tooLarge: boolean;
+  binary: boolean;
 }
 
 export interface FileEntry {

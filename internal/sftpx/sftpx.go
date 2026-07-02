@@ -2,6 +2,7 @@
 package sftpx
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -416,3 +418,47 @@ func (m *Manager) Rename(sessionID string, sshClient *ssh.Client, oldPath, newPa
 }
 
 var ErrNoSession = errors.New("no sftp session")
+
+// IsProbablyText reports whether data looks like decodable UTF-8 text (safe to
+// show in a read-only preview). A NUL byte or invalid UTF-8 is treated as
+// binary. Empty input is considered text.
+func IsProbablyText(data []byte) bool {
+	if len(data) == 0 {
+		return true
+	}
+	if bytes.IndexByte(data, 0) >= 0 {
+		return false
+	}
+	return utf8.Valid(data)
+}
+
+// ReadFilePreview reads a remote file for read-only preview. If the file is
+// larger than maxBytes it is NOT read and tooLarge is true (the caller should
+// suggest downloading instead). Directories are rejected.
+func (m *Manager) ReadFilePreview(sessionID string, sshClient *ssh.Client, remotePath string, maxBytes int64) (data []byte, size int64, tooLarge bool, err error) {
+	c, cerr := m.client(sessionID, sshClient)
+	if cerr != nil {
+		return nil, 0, false, cerr
+	}
+	fi, serr := c.Stat(remotePath)
+	if serr != nil {
+		return nil, 0, false, serr
+	}
+	if fi.IsDir() {
+		return nil, 0, false, errors.New("cannot preview a directory")
+	}
+	size = fi.Size()
+	if size > maxBytes {
+		return nil, size, true, nil
+	}
+	f, oerr := c.Open(remotePath)
+	if oerr != nil {
+		return nil, size, false, oerr
+	}
+	defer f.Close()
+	data, err = io.ReadAll(io.LimitReader(f, maxBytes))
+	if err != nil {
+		return nil, size, false, err
+	}
+	return data, size, false, nil
+}
