@@ -153,17 +153,21 @@ agent forwarding, host groups, password-storage refactor, SFTP two-pane, plugin 
 ## Part 3 — v0.6.0 → v1.0.0 — Terminal/SFTP Polish + Production Readiness
 **Theme:** Refine the day-to-day experience and get to a stable release.
 
-### v0.6.0 — Terminal UX
-- [ ] Terminal search improvements
-- [ ] Font settings (family/size/ligatures) polish
-- [ ] Tab restore (reopen last session set)
-- [ ] Keyboard shortcut help panel (Ctrl+? reference)
+### v0.6.0 — Terminal UX ← **implemented, pending QA (not tagged)**
+- [x] Terminal search improvements (live match count + no-result feedback)
+- [x] Font settings polish (family presets, size 8–32, Ctrl +/-/0)
+- [x] Tab restore (reopen last saved-host session set as idle; no secrets persisted)
+- [x] Keyboard shortcut help panel (F1 / sidebar button)
 
-### v0.7.0 — SFTP UX
-- [ ] Transfer progress refinements
-- [ ] Drag-upload polish
-- [ ] Remote directory bookmarks
-- [ ] Optional file preview (text/image)
+### v0.7.0 — SFTP UX ← **implemented, pending QA (not tagged)**
+- [x] Transfer progress (upload + download, in the SFTP panel)
+- [x] Drag-upload polish (accept/reject overlay with target dir)
+- [x] Remote directory bookmarks (per host; non-secret `data/bookmarks.json`)
+- [x] Optional file preview (read-only text, size-capped; binary refused)
+
+**Status:** v0.6.0 + v0.7.0 code-complete and bundled into one QA build. Automated
+verification passing. Tags and GitHub Releases intentionally **not** created yet
+(pending manual QA + owner approval). Dev version set to 0.7.0.
 
 ### v0.8.0 — Advanced SSH
 - [ ] ProxyJump / bastion host

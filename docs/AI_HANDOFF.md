@@ -12,7 +12,7 @@ and a Vue 3 + TypeScript frontend. All user data lives next to the exe in `data/
 encrypted with AES-256-GCM. The app has zero external network calls beyond user-initiated SSH/SFTP.
 It is personal-developer-scale: no database, no server, no tests (yet). CI via GitHub Actions added in v0.3.0.
 
-**Current version: v0.5.0** (in development — Part 2: Host Management + Secure Storage; not yet tagged)
+**Current version: v0.7.0** (in development — Part 3: Terminal UX (v0.6.0) + SFTP UX (v0.7.0) bundled; not yet tagged)
 
 ---
 
@@ -124,6 +124,20 @@ construct paths manually.
 **Host groups + search (frontend, `Sidebar.vue`).** Grouping key is `h.group?.trim() || "Ungrouped"`; the `Ungrouped` virtual group always sorts last. Search filters by name/address/user/group (case-insensitive) and hides empty groups. `HostDialog.vue` group input uses a `<datalist>` of existing groups. No backend change was needed (the `group` field already existed).
 
 **Security tests.** `internal/hosts/export_test.go` and `internal/keymgr/import_test.go`. The automated scan targets ONLY generated temp-dir artifacts (hosts.json, export bytes, files under `data/keys`) and asserts on unambiguous markers: a unique per-test sentinel secret value (cannot false-positive) plus PEM headers (`PRIVATE KEY`). It deliberately does NOT grep the repo/source/docs — those legitimately contain PEM strings (in policy docs) and key-path substrings like `id_ed25519`. The filename markers (`id_rsa`, `.pem`, `.key`) are for the *manual* QA scan, where a human can tell a path reference from key material.
+
+## v0.6.0 / v0.7.0 Changes to Be Aware Of (Terminal + SFTP UX)
+
+**Tab restore (`internal/session`).** Persists only non-secret tab intent (`{hostId, hostName}`) to `data/session.json`. App APIs `GetOpenTabs()` / `SaveOpenTabs()`. The frontend `sessions` store adds `status:"idle"` and `openSavedTabIdle(host)`, and debounces `SaveOpenTabs` on every open/close (only tabs with a non-empty `hostId` and `!quick` are written — Quick Connect secrets never persist). `Terminal.vue` skips `startSession()` when status is `"idle"` and shows a "Ready to connect" overlay whose button calls `startSession`. `App.vue:restoreTabs()` runs after hosts load and **skips hosts that no longer exist** (no crash). Restore never auto-connects.
+
+**SFTP transfer progress — dedicated event namespace.** New tracked transfers emit on `sftp:xfer:progress:<tabId>` / `sftp:xfer:done:<tabId>` (payload includes `direction`). This is deliberately separate from the drag-upload events (`sftp:progress`/`sftp:done`) used by `App.vue`, because Wails `EventsOff(name)` removes *all* listeners for a name — sharing them would let App.vue's transient drag `onDone` clobber SftpPanel's persistent listeners. `SftpPanel` owns the xfer listeners (registered in onMounted, `EventsOff` in onBeforeUnmount). Backend: `sftpx.DownloadWithProgress`, and `app.go` `SftpDownloadTracked`/`SftpUploadTracked` + the `xferEmitters` helper. The old `SftpUploadPaths` (drag) is unchanged.
+
+**Remote bookmarks (`internal/bookmarks`).** Per-host `{id, hostId, name, path, createdAt}` in `data/bookmarks.json`. Non-secret; **not** part of the safe host export (a separate file). App APIs `ListBookmarks(hostId)` / `AddBookmark(hostId,name,path)` (idempotent on host+path) / `DeleteBookmark(id)`. `List("")` returns nothing (bookmarks are host-scoped). Quick Connect tabs have no `hostId` → the SFTP bookmark menu shows a not-supported hint.
+
+**Text preview.** `sftpx.IsProbablyText` (pure: NUL byte or invalid UTF-8 ⇒ binary) + `sftpx.ReadFilePreview` (size-capped, rejects directories). `app.go SftpPreviewText` caps at 512 KiB, returns `{content, size, tooLarge, binary}` — read-only, never writes the remote file. Frontend `TextPreviewDialog.vue`; opened by double-clicking a text-extension file or right-click → 预览.
+
+**Font size shortcuts.** Handled in `Terminal.vue:onTermKey` (Ctrl+= / Ctrl+- / Ctrl+0) → `settings` store `bumpFontSize`/`resetFontSize` (clamped 8–32, persisted). `applySettings` already reacts to the deep settings watch, so all terminals update.
+
+**New persisted files are non-secret.** `data/session.json` and `data/bookmarks.json` join `settings.json` as plaintext-allowed (host references / UI state only). Tests assert they contain no secret/PEM markers. If you add a field, put it on the allowed or forbidden list and add a test.
 
 ## Known Gotchas
 

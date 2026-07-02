@@ -1,7 +1,7 @@
 # Session Status — SSH Terminal
 
 **Last updated:** 2026-07-02  
-**Updated by:** Claude Opus 4.8 (v0.5.0 Part 2 — Host Management + Secure Storage)
+**Updated by:** Claude Opus 4.8 (v0.6.0 + v0.7.0 — Terminal & SFTP UX, bundled QA build)
 
 ---
 
@@ -9,10 +9,11 @@
 
 | Field | Value |
 |-------|-------|
-| Version | **v0.5.0** |
-| Git tag | `v0.5.0` (annotated); `v0.4.0` → `3b09cfc` unchanged |
+| Version | **v0.7.0 (in development — v0.6.0+v0.7.0 bundled, NOT tagged/released)** |
+| Latest released version | **v0.5.0** (tag `v0.5.0` → `6343795`, unchanged) |
+| Git tag | `v0.5.0`, `v0.4.0` unchanged; no `v0.6.0`/`v0.7.0` tag created |
 | Branch | `main` |
-| Previous release commit | `3b09cfc8ebb35c58761da56b1a1111defdfb3c22` (`3b09cfc`, v0.4.0) |
+| Previous release commit | `6343795` (v0.5.0) |
 
 ---
 
@@ -124,6 +125,21 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 - **Automated verification (all pass)**: `go build ./...`, `go vet ./...`, `go test ./...`, `go mod verify`, `frontend npm run build` (vue-tsc + vite), `build-windows.bat` (exe built ~11.4 MB).
 - **QA build**: `qa-local/ssh-terminal-v0.5.0-qa/ssh-terminal.exe` + empty `data/`. Checklist: `qa-local/MANUAL_QA_v0.5.0.md` (A–I) — **passed**. qa-local/ is git-ignored.
 - **Released**: annotated tag `v0.5.0` pushed; GitHub Release published. `v0.4.0` tag unchanged.
+
+### v0.6.0 + v0.7.0 — Terminal & SFTP UX (in development 2026-07-02, bundled)
+- **Terminal search**: `Terminal.vue` search gains live match count + 无匹配 (SearchAddon.onDidChangeResults; live incremental).
+- **Font controls**: `settings` store `bumpFontSize`/`resetFontSize` (clamp 8–32); Ctrl +/-/0 in `Terminal.vue`; `SettingsDialog` font datalist + range 8–32.
+- **Tab restore**: new `internal/session` (`data/session.json`, non-secret hostId+hostName); `GetOpenTabs`/`SaveOpenTabs`; `sessions` store `idle` status + `openSavedTabIdle` + debounced persist; `Terminal.vue` idle overlay; `App.vue restoreTabs` skips missing hosts; Quick tabs never persisted.
+- **Shortcut help**: new `ShortcutHelpDialog.vue`; F1 + sidebar button.
+- **Transfer progress**: `sftpx.DownloadWithProgress`; `app.go` `SftpDownloadTracked`/`SftpUploadTracked` on dedicated `sftp:xfer:*` events; `SftpPanel` footer progress bar.
+- **Drag polish**: `App.vue` overlay accept/reject + target dir.
+- **Remote bookmarks**: new `internal/bookmarks` (`data/bookmarks.json`, non-secret); `ListBookmarks`/`AddBookmark`/`DeleteBookmark`; `SftpPanel` bookmark menu.
+- **Text preview**: `sftpx.IsProbablyText` + `ReadFilePreview`; `app.go SftpPreviewText` (512 KiB cap, read-only); `TextPreviewDialog.vue`.
+- **Tests**: `internal/bookmarks/bookmarks_test.go`, `internal/session/session_test.go`, `internal/sftpx/sftpx_test.go` (+ existing v0.5.0 tests). All `go test ./...` pass.
+- **Version bumped to 0.7.0**: `app.go`, `wails.json`, `frontend/package.json` + lock.
+- **Automated verification**: `go build/vet/test`, `go mod verify`, `npm run build`, `build-windows.bat` all pass.
+- **QA build**: `qa-local/ssh-terminal-v0.6.0-v0.7.0-qa/`; checklist `docs/QA_v0.6.0_v0.7.0.md`.
+- **No tag, no push, no GitHub Release.** Awaiting manual QA + approval.
 
 ## Known Issues (Open)
 
