@@ -10,3 +10,6 @@ frontend/package.json.md5
 .vscode/
 .idea/
 .claude/
+
+# Local manual-QA scratch (builds, sample configs, checklists) — never committed
+qa-local/
