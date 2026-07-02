@@ -16,7 +16,7 @@ Part 2 — Host Management + Secure Storage. **Not yet tagged or released.**
 ### Security
 - New whitelist-based export struct (`hosts.SafeHost`) guarantees no secret field can leak into an export — it is built independently of the internal `Host`/`storedHost` types.
 - Imported private keys are encrypted immediately; the passphrase is transient and never stored. `HasPassword` metadata reflects the key's real protection.
-- Added automated tests asserting: exports contain no plaintext secrets (unique-sentinel scan + PEM-marker scan), `hosts.json` stores only encrypted secret fields, imported keys produce only `.key.enc` (no plaintext key file / no PEM markers under `data/keys`), and passphrases are never persisted.
+- Added automated tests asserting: exports contain no plaintext secrets (unique-sentinel scan + PEM-marker scan), `hosts.json` stores only encrypted secret fields, imported keys produce only `.key.enc` (no plaintext key file / no PEM markers under `data/keys`), passphrases are never persisted, and host import deduplicates (skip-by-default), assigns fresh IDs, and preserves the existing encrypted password on overwrite.
 - `data/secret.key` format/location, and the `encPassword`/`encPassphrase` field contract, are unchanged.
 
 ## [0.4.0] - 2026-07-02
