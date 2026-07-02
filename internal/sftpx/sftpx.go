@@ -130,6 +130,55 @@ func (m *Manager) Download(sessionID string, sshClient *ssh.Client, remotePath, 
 	return err
 }
 
+// DownloadWithProgress downloads a remote file to a local path, reporting byte
+// progress via the callback. total is the remote file size, or -1 if unknown.
+func (m *Manager) DownloadWithProgress(sessionID string, sshClient *ssh.Client, remotePath, localPath string, progress ProgressFn) error {
+	c, err := m.client(sessionID, sshClient)
+	if err != nil {
+		return err
+	}
+	src, err := c.Open(remotePath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	var total int64 = -1
+	if fi, serr := c.Stat(remotePath); serr == nil {
+		total = fi.Size()
+	}
+	dst, err := os.Create(localPath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	buf := make([]byte, 256*1024) // 256 KiB
+	var transferred int64
+	name := path.Base(remotePath)
+	for {
+		n, rerr := src.Read(buf)
+		if n > 0 {
+			if _, werr := dst.Write(buf[:n]); werr != nil {
+				return werr
+			}
+			transferred += int64(n)
+			if progress != nil {
+				progress(transferred, total, name)
+			}
+		}
+		if rerr == io.EOF {
+			break
+		}
+		if rerr != nil {
+			return rerr
+		}
+	}
+	if progress != nil {
+		progress(transferred, total, "")
+	}
+	return nil
+}
+
 // Upload a local file to a remote path.
 func (m *Manager) Upload(sessionID string, sshClient *ssh.Client, localPath, remotePath string) error {
 	c, err := m.client(sessionID, sshClient)

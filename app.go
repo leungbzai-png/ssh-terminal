@@ -584,6 +584,63 @@ func errString(e error) string {
 	return e.Error()
 }
 
+// xferEmitters builds progress/done callbacks for a tracked SFTP transfer on the
+// dedicated "sftp:xfer:*" event namespace. This is intentionally separate from
+// the drag-upload events ("sftp:progress"/"sftp:done") so the persistent
+// SftpPanel listeners never collide with App.vue's transient drag listeners.
+func (a *App) xferEmitters(sessionID, direction string) (sftpx.ProgressFn, func(error)) {
+	startedAt := time.Now()
+	var lastEmit time.Time
+	progress := func(transferred, total int64, current string) {
+		now := time.Now()
+		if now.Sub(lastEmit) < 80*time.Millisecond && (total < 0 || transferred < total) {
+			return
+		}
+		lastEmit = now
+		runtime.EventsEmit(a.ctx, "sftp:xfer:progress:"+sessionID, map[string]any{
+			"transferred": transferred,
+			"total":       total,
+			"current":     current,
+			"direction":   direction,
+			"elapsedMs":   now.Sub(startedAt).Milliseconds(),
+		})
+	}
+	done := func(err error) {
+		runtime.EventsEmit(a.ctx, "sftp:xfer:done:"+sessionID, map[string]any{
+			"ok":        err == nil,
+			"err":       errString(err),
+			"direction": direction,
+		})
+	}
+	return progress, done
+}
+
+// SftpDownloadTracked downloads a remote file to a local path, emitting progress
+// on the sftp:xfer:* events for the SFTP panel to render.
+func (a *App) SftpDownloadTracked(sessionID, remotePath, localPath string) error {
+	c, err := a.ssh.Client(sessionID)
+	if err != nil {
+		return err
+	}
+	progress, done := a.xferEmitters(sessionID, "download")
+	err = a.sftp.DownloadWithProgress(sessionID, c, remotePath, localPath, progress)
+	done(err)
+	return err
+}
+
+// SftpUploadTracked uploads local files/dirs into remoteDir, emitting progress
+// on the sftp:xfer:* events (used by the SFTP panel's upload button).
+func (a *App) SftpUploadTracked(sessionID string, localPaths []string, remoteDir string) error {
+	c, err := a.ssh.Client(sessionID)
+	if err != nil {
+		return err
+	}
+	progress, done := a.xferEmitters(sessionID, "upload")
+	err = a.sftp.UploadPaths(sessionID, c, localPaths, remoteDir, progress)
+	done(err)
+	return err
+}
+
 func (a *App) SftpDelete(sessionID, remotePath string) error {
 	c, err := a.ssh.Client(sessionID)
 	if err != nil {

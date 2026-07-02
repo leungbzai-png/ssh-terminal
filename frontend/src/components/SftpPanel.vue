@@ -13,6 +13,9 @@ const entries = ref<FileEntry[]>([]);
 const loading = ref(false);
 const error = ref<string>("");
 
+// Transfer progress (upload/download) via the dedicated sftp:xfer:* events.
+const xfer = ref<{ dir: string; pct: number; current: string } | null>(null);
+
 // Context menu state
 const ctx = ref<{ x: number; y: number; entry: FileEntry | null } | null>(null);
 
@@ -64,13 +67,11 @@ async function uploadFiles() {
   try {
     const files: string[] = await window.go.main.App.PickFilesToUpload();
     if (!files || files.length === 0) return;
-    loading.value = true;
-    await window.go.main.App.SftpUploadPaths(props.tabId, files, cwd.value);
-    await load(cwd.value);
+    xfer.value = { dir: "upload", pct: 0, current: "准备…" };
+    await window.go.main.App.SftpUploadTracked(props.tabId, files, cwd.value);
   } catch (e: any) {
+    xfer.value = null;
     error.value = String(e?.message || e);
-  } finally {
-    loading.value = false;
   }
 }
 
@@ -79,8 +80,10 @@ async function download(e: FileEntry) {
   const local = await window.go.main.App.PickSaveLocation(e.name);
   if (!local) return;
   try {
-    await window.go.main.App.SftpDownload(props.tabId, e.path, local);
+    xfer.value = { dir: "download", pct: 0, current: e.name };
+    await window.go.main.App.SftpDownloadTracked(props.tabId, e.path, local);
   } catch (err: any) {
+    xfer.value = null;
     error.value = String(err?.message || err);
   }
 }
@@ -182,14 +185,35 @@ function onCtxOutside(e: MouseEvent) {
   if (ctx.value && !(e.target as HTMLElement).closest(".sftp")) closeCtx();
 }
 
+const progressEvt = `sftp:xfer:progress:${props.tabId}`;
+const doneEvt = `sftp:xfer:done:${props.tabId}`;
+function onXferProgress(p: { transferred: number; total: number; current: string; direction: string }) {
+  const pct = p.total > 0 ? Math.floor((p.transferred / p.total) * 100) : 0;
+  xfer.value = { dir: p.direction, pct, current: p.current || "" };
+}
+function onXferDone(r: { ok: boolean; err: string; direction: string }) {
+  if (r.ok) {
+    xfer.value = { dir: r.direction, pct: 100, current: "完成" };
+    setTimeout(() => (xfer.value = null), 700);
+    if (r.direction === "upload") load(cwd.value);
+  } else {
+    xfer.value = null;
+    error.value = "传输失败: " + r.err;
+  }
+}
+
 onMounted(() => {
   load("");
   window.addEventListener("click", closeCtx);
   window.addEventListener("contextmenu", onCtxOutside);
+  window.runtime.EventsOn(progressEvt, onXferProgress);
+  window.runtime.EventsOn(doneEvt, onXferDone);
 });
 onBeforeUnmount(() => {
   window.removeEventListener("click", closeCtx);
   window.removeEventListener("contextmenu", onCtxOutside);
+  window.runtime.EventsOff(progressEvt);
+  window.runtime.EventsOff(doneEvt);
 });
 watch(() => props.tabId, () => load(""));
 watch(
@@ -240,7 +264,14 @@ watch(
       </ul>
     </div>
     <footer>
-      <span class="hint">双击进入 · 右键菜单 · 可拖拽文件/文件夹到窗口上传</span>
+      <div v-if="xfer" class="xfer">
+        <div class="xfer-bar"><div class="xfer-fill" :style="{ width: xfer.pct + '%' }" /></div>
+        <div class="xfer-text">
+          {{ xfer.dir === "download" ? "下载" : "上传" }} {{ xfer.pct }}% —
+          <span class="mono">{{ xfer.current }}</span>
+        </div>
+      </div>
+      <span v-else class="hint">双击进入 · 右键菜单 · 可拖拽文件/文件夹到窗口上传</span>
     </footer>
 
     <!-- Context menu -->
@@ -393,6 +424,29 @@ footer {
   border-top: 1px solid var(--border);
   font-size: 10.5px;
   color: var(--fg-subtle);
+}
+.xfer-bar {
+  height: 4px;
+  background: var(--bg-active);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.xfer-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+.xfer-text {
+  font-size: 10.5px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xfer-text .mono {
+  font-family: var(--mono, monospace);
+  color: var(--fg);
 }
 
 /* context menu */
