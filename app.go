@@ -135,7 +135,19 @@ func (a *App) OpenSession(sessionID, hostID string, cols, rows int) error {
 		return err
 	}
 	s := config.Load()
-	return a.ssh.Open(sessionID, h, cols, rows, s.ConnectTimeoutSec)
+	return a.ssh.Open(sessionID, h, cols, rows, s.ConnectTimeoutSec, keepAliveSecFrom(s))
+}
+
+// keepAliveSecFrom returns the effective keepalive interval in seconds for the
+// given settings, or 0 when keepalive is disabled.
+func keepAliveSecFrom(s config.Settings) int {
+	if !s.KeepAliveEnabled {
+		return 0
+	}
+	if s.KeepAliveIntervalSec <= 0 {
+		return 30
+	}
+	return s.KeepAliveIntervalSec
 }
 
 func (a *App) WriteSession(sessionID string, dataB64 string) error {

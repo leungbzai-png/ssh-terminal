@@ -25,6 +25,11 @@ type Settings struct {
 	ShowCommandBar bool `json:"showCommandBar"`
 	// ConnectTimeoutSec is the TCP+SSH handshake timeout in seconds.
 	ConnectTimeoutSec int `json:"connectTimeoutSec"`
+	// KeepAliveEnabled, when true, sends periodic keepalive@openssh.com requests
+	// on each live session to keep idle connections and NAT mappings alive.
+	KeepAliveEnabled bool `json:"keepAliveEnabled"`
+	// KeepAliveIntervalSec is the interval between keepalive requests in seconds.
+	KeepAliveIntervalSec int `json:"keepAliveIntervalSec"`
 }
 
 func Defaults() Settings {
@@ -38,6 +43,8 @@ func Defaults() Settings {
 		ConfirmCloseWithActiveSessions: true,
 		ShowCommandBar:                 true,
 		ConnectTimeoutSec:              15,
+		KeepAliveEnabled:               true,
+		KeepAliveIntervalSec:           30,
 	}
 }
 

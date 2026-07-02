@@ -66,6 +66,8 @@ export interface AppSettings {
   confirmCloseWithActiveSessions: boolean;
   showCommandBar: boolean;
   connectTimeoutSec: number;
+  keepAliveEnabled: boolean;
+  keepAliveIntervalSec: number;
 }
 
 export interface HostRecord {

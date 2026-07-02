@@ -12,6 +12,8 @@ const defaults: AppSettings = {
   confirmCloseWithActiveSessions: true,
   showCommandBar: true,
   connectTimeoutSec: 15,
+  keepAliveEnabled: true,
+  keepAliveIntervalSec: 30,
 };
 
 export const useSettings = defineStore("settings", () => {

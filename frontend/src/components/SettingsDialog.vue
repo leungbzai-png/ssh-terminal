@@ -56,9 +56,28 @@ async function save() {
             </select>
           </div>
         </div>
+        <div class="field-row">
+          <div class="field">
+            <label>连接超时（秒）</label>
+            <input v-model.number="form.connectTimeoutSec" type="number" min="5" max="120" step="5" />
+          </div>
+          <div class="field">
+            <label>KeepAlive 间隔（秒）</label>
+            <input
+              v-model.number="form.keepAliveIntervalSec"
+              type="number"
+              min="10"
+              max="600"
+              step="5"
+              :disabled="!form.keepAliveEnabled"
+            />
+          </div>
+        </div>
         <div class="field">
-          <label>连接超时（秒）</label>
-          <input v-model.number="form.connectTimeoutSec" type="number" min="5" max="120" step="5" />
+          <label class="ck">
+            <input type="checkbox" v-model="form.keepAliveEnabled" />
+            <span>启用 SSH KeepAlive（保持空闲连接不断开）</span>
+          </label>
         </div>
         <div class="field">
           <label class="ck">

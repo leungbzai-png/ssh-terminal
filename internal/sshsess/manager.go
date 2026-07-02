@@ -37,6 +37,10 @@ type Session struct {
 	onData  DataHandler
 	onClose CloseHandler
 
+	// done is closed exactly once when the session terminates, signalling
+	// background goroutines (e.g. keepalive) to exit.
+	done chan struct{}
+
 	mu     sync.Mutex
 	closed bool
 }
@@ -155,7 +159,9 @@ func buildAuth(h hosts.Host) ([]ssh.AuthMethod, error) {
 
 // Open establishes a new SSH session and begins streaming.
 // timeoutSec is the TCP+SSH handshake timeout; 0 or negative falls back to 15 s.
-func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int, timeoutSec int) error {
+// keepAliveSec, when > 0, enables periodic keepalive@openssh.com requests at
+// that interval; 0 or negative disables keepalive.
+func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int, timeoutSec, keepAliveSec int) error {
 	auth, err := buildAuth(h)
 	if err != nil {
 		return err
@@ -238,6 +244,7 @@ func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int, timeoutSe
 		stdin:   stdin,
 		onData:  m.onData,
 		onClose: m.onClose,
+		done:    make(chan struct{}),
 	}
 	m.mu.Lock()
 	m.sessions[sessionID] = s
@@ -253,7 +260,32 @@ func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int, timeoutSe
 		}
 		s.closeWithReason(reason)
 	}()
+	if keepAliveSec > 0 {
+		s.startKeepAlive(time.Duration(keepAliveSec) * time.Second)
+	}
 	return nil
+}
+
+// startKeepAlive periodically sends a keepalive@openssh.com global request on
+// the client connection. It runs in its own goroutine and exits when the
+// session's done channel is closed or a request fails (dead connection).
+// It never touches stdin/stdout/stderr, so it cannot block the io pumps or
+// the session-wait goroutine.
+func (s *Session) startKeepAlive(interval time.Duration) {
+	go func() {
+		t := time.NewTicker(interval)
+		defer t.Stop()
+		for {
+			select {
+			case <-s.done:
+				return
+			case <-t.C:
+				if _, _, err := s.client.SendRequest("keepalive@openssh.com", true, nil); err != nil {
+					return
+				}
+			}
+		}
+	}()
 }
 
 func (s *Session) pump(r io.Reader) {
@@ -345,6 +377,9 @@ func (s *Session) closeWithReason(reason string) {
 		return
 	}
 	s.closed = true
+	if s.done != nil {
+		close(s.done)
+	}
 	s.mu.Unlock()
 	_ = s.stdin.Close()
 	_ = s.session.Close()
