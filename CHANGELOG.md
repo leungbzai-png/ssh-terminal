@@ -2,9 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.0] - Unreleased
+## [0.5.0] - 2026-07-02
 
-Part 2 — Host Management + Secure Storage. **Not yet tagged or released.**
+Part 2 — Host Management + Secure Storage.
 
 ### Added
 - **Host groups**: hosts can be organized into named groups. The sidebar renders one section per group; hosts with no group appear under a virtual **Ungrouped** section (always shown last). The host create/edit dialog has a group field with autocomplete of existing groups. Empty group is treated as Ungrouped. (`Host.Group` already existed in the schema; this formalizes the UX and default naming.)

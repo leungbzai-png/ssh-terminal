@@ -9,11 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| Version | **v0.5.0 (in development — NOT tagged, NOT released)** |
-| Latest released version | **v0.4.0** (tag `v0.4.0` → `3b09cfc`, unchanged) |
-| Git tag | `v0.4.0` → points to `3b09cfc` (no `v0.5.0` tag created) |
+| Version | **v0.5.0** |
+| Git tag | `v0.5.0` (annotated); `v0.4.0` → `3b09cfc` unchanged |
 | Branch | `main` |
-| Final v0.4.0 release commit | `3b09cfc8ebb35c58761da56b1a1111defdfb3c22` (`3b09cfc`) |
+| Previous release commit | `3b09cfc8ebb35c58761da56b1a1111defdfb3c22` (`3b09cfc`, v0.4.0) |
 
 ---
 
@@ -32,13 +31,18 @@
 
 | Release | Date | Status | Artifacts |
 |---------|------|--------|-----------|
-| v0.4.0 | 2026-07-02 | ✅ Published (latest) | `ssh-terminal-v0.4.0-windows-amd64.zip` (4,745,983 bytes ≈ 4.53 MB) |
+| v0.5.0 | 2026-07-02 | ✅ Published (latest) | `ssh-terminal-v0.5.0-windows-amd64.zip` (4,754,440 bytes ≈ 4.53 MB) |
+| v0.4.0 | 2026-07-02 | ✅ Published | `ssh-terminal-v0.4.0-windows-amd64.zip` (4,745,983 bytes ≈ 4.53 MB) |
 | v0.3.0 | 2026-06-10 | ✅ Published | `ssh-terminal-v0.3.0-windows-amd64.zip` |
 | v0.2.0 | 2026-06-10 | ✅ Published | `ssh-terminal-v0.2.0-windows-amd64.zip` (4.51 MB) |
 | v0.1.0 | 2025 | Historical only (not on GitHub) | — |
 
+**v0.5.0 release:** annotated tag `v0.5.0` on `main`. GitHub Release published and marked latest:
+https://github.com/leungbzai-png/ssh-terminal/releases/tag/v0.5.0
+Uploaded artifact: `ssh-terminal-v0.5.0-windows-amd64.zip` (4,754,440 bytes). Manual QA checklist A–I passed; git status clean after release. `v0.4.0` tag unchanged.
+
 **v0.4.0 release:** tag `v0.4.0` points to commit `3b09cfc8ebb35c58761da56b1a1111defdfb3c22`.
-GitHub Release published and marked latest: https://github.com/leungbzai-png/ssh-terminal/releases/tag/v0.4.0
+GitHub Release published: https://github.com/leungbzai-png/ssh-terminal/releases/tag/v0.4.0
 Uploaded artifact: `ssh-terminal-v0.4.0-windows-amd64.zip` (4,745,983 bytes). Manual QA checklist A–G passed; git status clean after release.
 
 Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-windows-amd64.zip`
@@ -110,7 +114,7 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 - **Manual QA checklist A→G passed** (see `qa-local/MANUAL_QA_v0.4.0.md`, not tracked): fresh startup, KeepAlive default/range/idle-survival, Quick Connect no-save + remember (encrypted), config import (skip `Host *`, ProxyJump/missing-key warnings, duplicate-safe), security scans clean
 - **Release artifact prepared**: `ssh-terminal-v0.4.0-windows-amd64.zip` (exe + README + LICENSE only)
 
-### v0.5.0 — Part 2: Host Management + Secure Storage (in development 2026-07-02)
+### v0.5.0 — Part 2: Host Management + Secure Storage (released 2026-07-02)
 - **Host groups**: `Host.Group` (already in schema) formalized in UI; `Sidebar.vue` groups by `group || "Ungrouped"` (Ungrouped sorts last); `HostDialog.vue` group field gains a `<datalist>` of existing groups. No backend/schema change.
 - **Host search**: existing `Sidebar.vue` search verified against acceptance (alias/address/user/group, case-insensitive, hides empty groups, clears to full).
 - **Safe host export/import**: new `internal/hosts/export.go` (`SafeHost` whitelist struct, `BuildExport`/`MarshalExport`/`ParseExport`, format `ssh-terminal.hosts.safe-export` v1); `app.go` APIs `ExportHosts` / `PreviewHostsImport` / `ImportHosts(entries, overwrite)`; new `ImportHostsDialog.vue`; Sidebar "导出主机"/"导入主机" buttons; App.vue wiring. Duplicates (address+port+user) skip by default, overwrite behind explicit checkbox; new hosts get fresh IDs.
@@ -118,8 +122,8 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 - **Security enforcement**: `internal/hosts/export_test.go` + `internal/keymgr/import_test.go` + `app_test.go` — sentinel + PEM-marker scans on generated artifacts only, encrypted-field assertions, no-plaintext-key-file assertions, passphrase-not-persisted, and host-import dedup/fresh-ID/overwrite-preserves-secret.
 - **Version bumped to 0.5.0**: `app.go` AppInfo, `wails.json` (+author/copyright → noobra2), `frontend/package.json`, `frontend/package-lock.json`.
 - **Automated verification (all pass)**: `go build ./...`, `go vet ./...`, `go test ./...`, `go mod verify`, `frontend npm run build` (vue-tsc + vite), `build-windows.bat` (exe built ~11.4 MB).
-- **QA build**: `qa-local/ssh-terminal-v0.5.0-qa/ssh-terminal.exe` + empty `data/`. Checklist: `qa-local/MANUAL_QA_v0.5.0.md` (A–I). qa-local/ is git-ignored.
-- **No tag, no push, no GitHub Release created.** Awaiting manual QA + owner approval.
+- **QA build**: `qa-local/ssh-terminal-v0.5.0-qa/ssh-terminal.exe` + empty `data/`. Checklist: `qa-local/MANUAL_QA_v0.5.0.md` (A–I) — **passed**. qa-local/ is git-ignored.
+- **Released**: annotated tag `v0.5.0` pushed; GitHub Release published. `v0.4.0` tag unchanged.
 
 ## Known Issues (Open)
 
@@ -141,14 +145,16 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 ### v0.4.0 — Part 1: Connection UX — ✅ released
 - KeepAlive, Quick Connect, Import `~/.ssh/config` — implemented, QA passed, tagged `v0.4.0`
 
-### v0.5.0 — Part 2: Host Management + Secure Storage — ✅ implemented, ⏳ pending manual QA + release
+### v0.5.0 — Part 2: Host Management + Secure Storage — ✅ released 2026-07-02
 1. Host groups / folders — done
 2. Host search (formalized) — done
 3. Safe host export/import (no secrets by default) — done
 4. Encrypted private-key import (`.key.enc`) — done
 5. Security-policy enforcement / no plaintext secrets on disk — done (tests + docs)
 
-Remaining before release: run `qa-local/MANUAL_QA_v0.5.0.md` (A–I), then owner approval to tag `v0.5.0` + publish Release.
+Manual QA A–I passed; tag `v0.5.0` + GitHub Release published.
+
+### Next: v0.6.0 — Part 3 (Terminal UX) — do not start unprompted
 
 ### Later (Part 3: v0.6.0 → v1.0.0)
 - Terminal UX (v0.6.0), SFTP UX (v0.7.0), Advanced SSH incl. ProxyJump/forwarding/SOCKS (v0.8.0), Hardening + tests (v0.9.0), stable tag (v1.0.0)

@@ -134,7 +134,7 @@ agent forwarding, host groups, password-storage refactor, SFTP two-pane, plugin 
 
 ---
 
-## Part 2 — v0.5.0 — Host Management + Secure Storage ← **implemented, not yet tagged**
+## Part 2 — v0.5.0 — Host Management + Secure Storage ✅ Released 2026-07-02
 **Theme:** Organize many hosts and harden secret handling.
 
 - [x] Host groups / folders in sidebar (Ungrouped virtual group; group field in host dialog)
@@ -144,7 +144,7 @@ agent forwarding, host groups, password-storage refactor, SFTP two-pane, plugin 
 - [x] Security-policy enforcement (automated tests assert no plaintext secrets are ever persisted / exported)
 - [x] No plaintext secrets on disk (whitelist export struct + sentinel/PEM-marker scan tests)
 
-**Status:** Code complete and automated verification passing. Tag `v0.5.0` and GitHub Release intentionally **not** created yet (pending manual QA + owner approval).
+**Status:** Released. Manual QA A–I passed; tag `v0.5.0` created and GitHub Release published.
 
 **Breaking changes:** None. `hosts.json` schema is unchanged (`group` field already existed); export/import is additive.
 
