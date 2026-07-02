@@ -87,6 +87,51 @@ The `sshconfig.Parse` function is intentionally pure (no filesystem access) so t
 tricky OpenSSH-syntax handling is unit-testable in isolation; `~` expansion and
 existence checks are separate, caller-side concerns.
 
+## Why Safe Host Export Excludes Secrets by Default (v0.5.0)
+
+The export format (`ssh-terminal.hosts.safe-export`) exists to back up and move
+host *organization* — not credentials. Exporting a password or private key into
+a plain JSON file would create an unencrypted copy of a secret outside the
+`data/` encryption boundary, defeating the whole storage model. So the default
+(and only, in v0.5.0) export is non-secret:
+
+- The export is built from a dedicated whitelist struct (`hosts.SafeHost`),
+  independent of the internal `Host`/`storedHost` types, so no secret field can
+  be added by accident — even if someone later adds a new secret field to `Host`.
+- Key auth is preserved as a *reference* (external `keyPath` / `managedKeyId`),
+  never as key material. On another machine the reference may not resolve; the
+  import preview flags a missing key path, and the user re-points or re-imports.
+- An "encrypted backup export" (including secrets, restorable) was explicitly
+  deferred — safe non-secret export is sufficient and cannot leak.
+
+## Why Imported Private Keys Are Encrypted Immediately (v0.5.0)
+
+`keymgr.ImportFromFile` reads an external private key and writes it back only as
+`data/keys/<id>.key.enc`. We never copy the plaintext key into `data/`:
+
+- A plaintext key under `data/` would be a second, unencrypted copy of a secret
+  — the same anti-pattern we avoid for `~/.ssh/config` import (which references,
+  not copies).
+- The key bytes are read on the Go side so plaintext never crosses the Wails
+  bridge and cannot end up in a frontend log.
+- A supplied passphrase is used only to validate a protected key; it is never
+  persisted, and the original (passphrase-protected) bytes are what get
+  encrypted at rest, so we never silently downgrade the key's protection.
+
+Users who prefer not to store the key at all can still reference it by external
+path (`authType:"key"`, `keyPath`) exactly as before — encrypted import is an
+explicit opt-in, not the only option.
+
+## Portable Secure Storage vs. Future Optional OS Keychain
+
+v0.5.0 keeps the **portable** secure-storage model: AES-256-GCM with the local
+`data/secret.key`, everything movable as a folder. OS-native secure stores
+(Windows Credential Manager, macOS Keychain, Linux keyring) were considered and
+deliberately NOT adopted in v0.5.0 because they break portability (credentials
+would be bound to one machine/user profile). If ever added, they must be an
+*optional* native secure-store mode, not the default — the portable mode stays
+the baseline.
+
 ## Why Strict `known_hosts` Verification?
 
 The app does not have a "Trust All Hosts" option. This is intentional.

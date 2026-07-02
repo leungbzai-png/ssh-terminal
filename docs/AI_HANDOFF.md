@@ -12,7 +12,7 @@ and a Vue 3 + TypeScript frontend. All user data lives next to the exe in `data/
 encrypted with AES-256-GCM. The app has zero external network calls beyond user-initiated SSH/SFTP.
 It is personal-developer-scale: no database, no server, no tests (yet). CI via GitHub Actions added in v0.3.0.
 
-**Current version: v0.4.0** (in development — Part 1: Connection UX)
+**Current version: v0.5.0** (in development — Part 2: Host Management + Secure Storage; not yet tagged)
 
 ---
 
@@ -112,6 +112,18 @@ construct paths manually.
 **Import APIs** (`app.go`): `DefaultSshConfigPath()`, `PickSshConfig()`, `PreviewSshConfig(path)` → `[]SshConfigPreviewEntry` (adds `identityExists`/`duplicate`), `ImportSshConfig(entries)` → `SshConfigImportResult`. Imported `IdentityFile` hosts use `authType:"key"` with `KeyPath` pointing at the **external** file — no key is copied into `data/`, nothing is decrypted. Duplicates (address+port+user, case-insensitive) are skipped.
 
 **Adding a new auth type still means updating BOTH** `buildAuth` and `buildAuthForDeploy` (unchanged from v0.3.0), plus `QuickConnectDialog.vue`'s auth `<select>` if it should be quick-connectable.
+
+## v0.5.0 Changes to Be Aware Of
+
+**⚠ No-plaintext-secrets policy (read before touching hosts/keys/export).** These must NEVER be written to disk in plaintext or leave the app in an export: SSH password, private key, key passphrase, Quick Connect temporary secrets, imported key material, API tokens. Allowed in plaintext: alias, hostname, port, user, auth type, group, note, public key, fingerprint, known_hosts, UI settings, key *references* (external paths). If you add a field, decide which list it belongs to and add a test.
+
+**Safe host export/import (`internal/hosts/export.go`).** Export is built from a dedicated whitelist struct `hosts.SafeHost` — *not* `Host`/`storedHost` — so a secret field cannot be added by accident. `BuildExport()`/`MarshalExport()` produce the document; `ParseExport()` validates `format == "ssh-terminal.hosts.safe-export"` and `version`. The document carries only: name, address, port, user, authType, keyPath, managedKeyId, group, note. App APIs: `ExportHosts()` (SaveFileDialog → writes file → returns path), `PreviewHostsImport()` (OpenFileDialog → parse → annotate with `duplicate`/`keyExists`, no mutation), `ImportHosts(entries, overwrite)`. Import dedups by address+port+user via `findDuplicateHostID`; duplicates are skipped unless `overwrite` is true; new hosts get fresh IDs (incoming IDs are ignored — `Host.ID` is left empty so `Upsert` mints one). Overwrite updates in place and preserves the existing encrypted password.
+
+**Encrypted private-key import (`internal/keymgr/import.go`).** `ImportFromFile(name, comment, path, passphrase)` reads the key file on the Go side (plaintext never crosses the Wails bridge, never logged), validates with `ssh.ParsePrivateKey` (on `*ssh.PassphraseMissingError`, requires the passphrase and uses `ParsePrivateKeyWithPassphrase`), then cryptox-encrypts the **original** bytes to `data/keys/<id>.key.enc`. It never strips the passphrase and never persists it. `HasPassword` reflects the key's real protection. App API: `ImportPrivateKey(name, comment, keyPath, passphrase)`. Only `.key.enc`, `<id>.pub`, and `index.json` metadata are written under `data/keys` — no `.pem`/`.key`/`id_rsa` plaintext ever.
+
+**Host groups + search (frontend, `Sidebar.vue`).** Grouping key is `h.group?.trim() || "Ungrouped"`; the `Ungrouped` virtual group always sorts last. Search filters by name/address/user/group (case-insensitive) and hides empty groups. `HostDialog.vue` group input uses a `<datalist>` of existing groups. No backend change was needed (the `group` field already existed).
+
+**Security tests.** `internal/hosts/export_test.go` and `internal/keymgr/import_test.go`. The automated scan targets ONLY generated temp-dir artifacts (hosts.json, export bytes, files under `data/keys`) and asserts on unambiguous markers: a unique per-test sentinel secret value (cannot false-positive) plus PEM headers (`PRIVATE KEY`). It deliberately does NOT grep the repo/source/docs — those legitimately contain PEM strings (in policy docs) and key-path substrings like `id_ed25519`. The filename markers (`id_rsa`, `.pem`, `.key`) are for the *manual* QA scan, where a human can tell a path reference from key material.
 
 ## Known Gotchas
 

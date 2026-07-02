@@ -134,17 +134,19 @@ agent forwarding, host groups, password-storage refactor, SFTP two-pane, plugin 
 
 ---
 
-## Part 2 — v0.5.0 — Host Management + Secure Storage
+## Part 2 — v0.5.0 — Host Management + Secure Storage ← **implemented, not yet tagged**
 **Theme:** Organize many hosts and harden secret handling.
 
-- [ ] Host groups / folders in sidebar
-- [ ] Host search (already partly present; formalize + improve)
-- [ ] Safe host export / import (JSON backup; **never** exports password / passphrase / private key by default)
-- [ ] Encrypted private-key import (import an external key → encrypt to `.key.enc`; no plaintext key on disk)
-- [ ] Security-policy enforcement (assert no plaintext secrets are ever persisted)
-- [ ] No plaintext secrets on disk (audit + guardrails)
+- [x] Host groups / folders in sidebar (Ungrouped virtual group; group field in host dialog)
+- [x] Host search (alias/hostname/username/group, case-insensitive; hides empty groups)
+- [x] Safe host export / import (JSON backup; **never** exports password / passphrase / private key by default; duplicate-safe import with preview)
+- [x] Encrypted private-key import (import an external key → encrypt to `.key.enc`; no plaintext key on disk; passphrase never persisted)
+- [x] Security-policy enforcement (automated tests assert no plaintext secrets are ever persisted / exported)
+- [x] No plaintext secrets on disk (whitelist export struct + sentinel/PEM-marker scan tests)
 
-**Breaking changes:** Possible `hosts.json` schema additions (group metadata) — backward-compatible
+**Status:** Code complete and automated verification passing. Tag `v0.5.0` and GitHub Release intentionally **not** created yet (pending manual QA + owner approval).
+
+**Breaking changes:** None. `hosts.json` schema is unchanged (`group` field already existed); export/import is additive.
 
 ---
 

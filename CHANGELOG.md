@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - Unreleased
+
+Part 2 — Host Management + Secure Storage. **Not yet tagged or released.**
+
+### Added
+- **Host groups**: hosts can be organized into named groups. The sidebar renders one section per group; hosts with no group appear under a virtual **Ungrouped** section (always shown last). The host create/edit dialog has a group field with autocomplete of existing groups. Empty group is treated as Ungrouped. (`Host.Group` already existed in the schema; this formalizes the UX and default naming.)
+- **Host search**: the sidebar search box filters hosts by alias, hostname, username, and group (case-insensitive). Groups with no matches are hidden; clearing the box restores the full grouped list. Search is frontend-only and never mutates host data.
+- **Safe host export**: "导出主机" writes a JSON backup containing only non-secret host metadata (name, address, port, user, auth type, group, note, and key *references*). The file is explicitly labelled "安全，不含密码或私钥". It never contains a password, passphrase, encrypted secret, or private-key material. Format: `{"format":"ssh-terminal.hosts.safe-export","version":1,...}`.
+- **Safe host import**: "导入主机" reads a safe-export file, shows a preview with duplicate and missing-key-path badges, and imports selected hosts. Duplicates (address+port+user) default to **skip**; overwriting requires an explicit checkbox. Imported hosts carry no passwords — the user adds credentials afterward. New hosts receive freshly minted IDs. Invalid/unknown files produce a friendly error and never corrupt the existing host list.
+- **Encrypted private-key import**: the Keys dialog can import an existing private key file into the managed key store. The key is read on the Go side only, validated, and immediately encrypted to `data/keys/<id>.key.enc`. No plaintext private key is ever written under `data/`. A passphrase, if supplied, is used only to validate a protected key and is never persisted; the original protection is preserved at rest.
+
+### Security
+- New whitelist-based export struct (`hosts.SafeHost`) guarantees no secret field can leak into an export — it is built independently of the internal `Host`/`storedHost` types.
+- Imported private keys are encrypted immediately; the passphrase is transient and never stored. `HasPassword` metadata reflects the key's real protection.
+- Added automated tests asserting: exports contain no plaintext secrets (unique-sentinel scan + PEM-marker scan), `hosts.json` stores only encrypted secret fields, imported keys produce only `.key.enc` (no plaintext key file / no PEM markers under `data/keys`), and passphrases are never persisted.
+- `data/secret.key` format/location, and the `encPassword`/`encPassphrase` field contract, are unchanged.
+
 ## [0.4.0] - 2026-07-02
 
 ### Added
