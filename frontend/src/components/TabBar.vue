@@ -25,6 +25,8 @@ function dotClass(status: string) {
     ? "ok"
     : status === "connecting"
     ? "pending"
+    : status === "idle"
+    ? "idle"
     : "fail";
 }
 
@@ -189,6 +191,7 @@ onUnmounted(() => window.removeEventListener("click", closeCtx));
   animation: pulse 1.2s ease-in-out infinite;
 }
 .tab-dot.fail { background: var(--danger); }
+.tab-dot.idle { background: var(--fg-subtle); }
 .tab-close {
   width: 18px;
   height: 18px;

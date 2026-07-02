@@ -17,6 +17,7 @@ import (
 	"github.com/leungbzai-png/ssh-terminal/internal/hosts"
 	"github.com/leungbzai-png/ssh-terminal/internal/keymgr"
 	"github.com/leungbzai-png/ssh-terminal/internal/portable"
+	"github.com/leungbzai-png/ssh-terminal/internal/session"
 	"github.com/leungbzai-png/ssh-terminal/internal/sftpx"
 	"github.com/leungbzai-png/ssh-terminal/internal/sshconfig"
 	"github.com/leungbzai-png/ssh-terminal/internal/sshsess"
@@ -400,6 +401,16 @@ func (a *App) ImportHosts(entries []hosts.SafeHost, overwrite bool) (HostsImport
 	}
 	return res, nil
 }
+
+// --- Tab restore (v0.6.0) ---
+
+// GetOpenTabs returns the saved-host tabs to restore on launch (non-secret:
+// host id + display name only). Restored tabs are NOT auto-connected.
+func (a *App) GetOpenTabs() []session.OpenTab { return session.Load() }
+
+// SaveOpenTabs persists the current set of saved-host tabs. Quick Connect tabs
+// (empty host id) are dropped and never written.
+func (a *App) SaveOpenTabs(tabs []session.OpenTab) error { return session.Save(tabs) }
 
 func (a *App) OpenSession(sessionID, hostID string, cols, rows int) error {
 	h, err := hosts.Get(hostID)

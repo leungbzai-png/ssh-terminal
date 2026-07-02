@@ -97,6 +97,23 @@ const onFileDrop = async (payload: { paths: string[] }) => {
   }
 };
 
+// Restore last session's saved-host tabs as idle (not auto-connected). Hosts
+// that no longer exist are skipped silently — no crash.
+async function restoreTabs() {
+  try {
+    const refs = (await window.go.main.App.GetOpenTabs()) || [];
+    let skipped = 0;
+    for (const r of refs) {
+      const host = hostsStore.hosts.find((h) => h.id === r.hostId);
+      if (host) sessions.openSavedTabIdle(host);
+      else skipped++;
+    }
+    if (skipped > 0) console.info(`Skipped ${skipped} restored tab(s): host removed`);
+  } catch (e) {
+    console.info("Tab restore skipped:", e);
+  }
+}
+
 function onGlobalKey(e: KeyboardEvent) {
   if (e.key === "F1") {
     e.preventDefault();
@@ -118,6 +135,7 @@ onMounted(async () => {
   await settings.load();
   theme.setMode(settings.settings.theme);
   await hostsStore.refresh();
+  await restoreTabs();
   window.runtime.EventsOn("app:confirmClose", onConfirmClose);
   window.runtime.EventsOn("app:filedrop", onFileDrop);
   window.addEventListener("dragenter", dragEnter);

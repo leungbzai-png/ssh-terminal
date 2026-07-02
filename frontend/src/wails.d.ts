@@ -52,6 +52,9 @@ declare global {
           PreviewHostsImport: () => Promise<HostsImportPreview>;
           ImportHosts: (entries: SafeHost[], overwrite: boolean) => Promise<HostsImportResult>;
 
+          GetOpenTabs: () => Promise<OpenTabRef[]>;
+          SaveOpenTabs: (tabs: OpenTabRef[]) => Promise<void>;
+
           PickFileToUpload: () => Promise<string>;
           PickFilesToUpload: () => Promise<string[]>;
           PickSaveLocation: (suggested: string) => Promise<string>;
@@ -139,6 +142,12 @@ export interface HostsImportResult {
   imported: number;
   skipped: number;
   overwritten: number;
+}
+
+// Non-secret restorable tab intent (host reference only).
+export interface OpenTabRef {
+  hostId: string;
+  hostName: string;
 }
 
 export interface HostRecord {

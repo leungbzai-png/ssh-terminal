@@ -6,7 +6,8 @@ export interface TabSession {
   id: string;
   hostId: string;
   hostName: string;
-  status: "connecting" | "open" | "closed" | "error";
+  // "idle" = restored saved-host tab, not yet connected (Ready to connect).
+  status: "idle" | "connecting" | "open" | "closed" | "error";
   error?: string;
   showSftp: boolean;
   // quick marks a Quick Connect tab whose credentials live only in memory
@@ -42,6 +43,27 @@ export const useSessions = defineStore("sessions", () => {
 
   const activePane = computed(() => panes.value.find((p) => p.id === activePaneId.value)!);
 
+  // Persist the current set of saved-host tabs (non-secret: host id + name).
+  // Debounced so rapid open/close bursts collapse into one write. Quick Connect
+  // tabs (no hostId) are excluded so their secrets never touch disk.
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  function schedulePersistTabs() {
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      const list: { hostId: string; hostName: string }[] = [];
+      for (const p of panes.value) {
+        for (const id of p.tabIds) {
+          const t = tabs.value[id];
+          if (t && t.hostId && !t.quick) {
+            list.push({ hostId: t.hostId, hostName: t.hostName });
+          }
+        }
+      }
+      window.go.main.App.SaveOpenTabs(list).catch(() => {});
+    }, 300);
+  }
+
   function openInActivePane(host: HostRecord) {
     const tabId = uid("t");
     tabs.value[tabId] = {
@@ -53,6 +75,24 @@ export const useSessions = defineStore("sessions", () => {
     };
     activePane.value.tabIds.push(tabId);
     activePane.value.activeTabId = tabId;
+    schedulePersistTabs();
+    return tabId;
+  }
+
+  // openSavedTabIdle restores a saved-host tab WITHOUT connecting. The terminal
+  // shows a "Ready to connect" prompt; connection starts only on user action.
+  function openSavedTabIdle(host: HostRecord) {
+    const tabId = uid("t");
+    tabs.value[tabId] = {
+      id: tabId,
+      hostId: host.id,
+      hostName: host.name || host.address,
+      status: "idle",
+      showSftp: false,
+    };
+    activePane.value.tabIds.push(tabId);
+    if (!activePane.value.activeTabId) activePane.value.activeTabId = tabId;
+    schedulePersistTabs();
     return tabId;
   }
 
@@ -114,6 +154,7 @@ export const useSessions = defineStore("sessions", () => {
         activePaneId.value = panes.value[0].id;
       }
     }
+    schedulePersistTabs();
   }
 
   function splitRight() {
@@ -154,6 +195,7 @@ export const useSessions = defineStore("sessions", () => {
     reconnectTick,
     quickParams,
     openInActivePane,
+    openSavedTabIdle,
     openQuickInActivePane,
     setActiveTab,
     setTabStatus,

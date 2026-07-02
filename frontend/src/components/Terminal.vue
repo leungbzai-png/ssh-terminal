@@ -246,7 +246,13 @@ onMounted(async () => {
   ro = new ResizeObserver(() => fit?.fit());
   ro.observe(wrap.value);
 
-  await startSession();
+  // Restored ("idle") tabs wait for the user to connect; everything else
+  // connects immediately.
+  if (tab.value?.status === "idle") {
+    term.writeln("\x1b[90m— 已恢复的会话，点击“连接”开始 —\x1b[0m");
+  } else {
+    await startSession();
+  }
 });
 
 watch(() => settings.settings, applySettings, { deep: true });
@@ -302,6 +308,19 @@ onBeforeUnmount(async () => {
         <button type="button" class="icon-btn" title="关闭" @click="closeSearch">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
+      </div>
+    </Transition>
+
+    <Transition name="fade">
+      <div v-if="tab?.status === 'idle'" class="reconnect-overlay">
+        <div class="reconnect-card">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+          <div class="reconnect-title">准备连接</div>
+          <div class="reconnect-sub">{{ tab?.hostName }}（已从上次会话恢复，未自动连接）</div>
+          <button type="button" class="primary" @click="startSession">连接</button>
+        </div>
       </div>
     </Transition>
 
