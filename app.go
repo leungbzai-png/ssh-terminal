@@ -119,7 +119,7 @@ func (a *App) onFileDrop(x, y int, paths []string) {
 func (a *App) AppInfo() map[string]string {
 	return map[string]string{
 		"name":    "SSH Terminal",
-		"version": "0.5.0",
+		"version": "0.7.0",
 		"dataDir": portable.DataDir(),
 		"baseDir": portable.BaseDir(),
 	}
