@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.4.0] - Unreleased
+## [0.4.0] - 2026-07-02
 
 ### Added
 - **SSH KeepAlive**: periodic `keepalive@openssh.com` requests keep idle sessions and NAT mappings alive. New settings `keepAliveEnabled` (default on) and `keepAliveIntervalSec` (default 30 s, range 10–600 s) in the Settings dialog. The keepalive goroutine exits cleanly when the session closes and never blocks the stdout/stderr/wait goroutines.
@@ -12,6 +12,12 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - `sshsess.Manager.Open` now takes an additional `keepAliveSec int` parameter (0 disables keepalive). Internal API only.
+
+### Security
+- Quick Connect temporary passwords and passphrases are never persisted — they exist only in memory for the session and are dropped when the tab closes.
+- Saved host passwords/passphrases continue to use AES-256-GCM encrypted storage (`encPassword`/`encPassphrase`); no plaintext secret is ever written to `hosts.json`.
+- Imported `IdentityFile` entries are referenced by path only; no plaintext private key is copied into `data/`.
+- `data/secret.key` format and location are unchanged.
 
 ## [0.3.0] - 2026-06-10
 

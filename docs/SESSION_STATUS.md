@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| Version | **v0.4.0** (in development, not yet tagged) |
-| Git tag | `v0.3.0` (latest release) |
+| Version | **v0.4.0** |
+| Git tag | `v0.4.0` |
 | Branch | `main` |
-| Latest release commit | `addc6bf` — chore: release v0.3.0 |
+| Latest commit | see release commit below |
 
 ---
 
@@ -99,8 +99,10 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 - **SSH KeepAlive**: `config.Settings` gained `KeepAliveEnabled` (default true) + `KeepAliveIntervalSec` (default 30); `sshsess.Manager.Open` gained a `keepAliveSec` param and a `done`-channel-driven keepalive goroutine sending `keepalive@openssh.com`; `SettingsDialog.vue` + settings store + `wails.d.ts` updated
 - **Quick Connect**: new `SshOpenQuick` API + `QuickConnectParams` (in-memory only, never persisted); `QuickConnectDialog.vue`; `sessions` store `quickParams` map + `openQuickInActivePane` (cleared in `closeTab`); `Terminal.vue` branches quick vs saved; "记住此主机" reuses `UpsertHost`
 - **Import `~/.ssh/config`**: new `internal/sshconfig` package (pure parser + unit tests); `DefaultSshConfigPath`/`PickSshConfig`/`PreviewSshConfig`/`ImportSshConfig` APIs; `ImportConfigDialog.vue` with preview, duplicate/missing-key badges; external IdentityFile referenced by path only
-- `Sidebar.vue` footer: 快速连接 / 新增主机 / 导入配置; `App.vue` wiring; `AppInfo` version → 0.4.0
-- Verified: `go vet ./...`, `go build ./...`, `go test ./...`, `frontend npm run build`, `build-windows.bat` all pass
+- `Sidebar.vue` footer: 快速连接 / 新增主机 / 导入配置; `App.vue` wiring; version → 0.4.0 in `app.go`, `wails.json`, `frontend/package.json`
+- **Final verification passed**: `go build ./...`, `go vet ./...`, `go test ./...`, `frontend npm run build`, `build-windows.bat` all pass
+- **Manual QA checklist A→G passed** (see `qa-local/MANUAL_QA_v0.4.0.md`, not tracked): fresh startup, KeepAlive default/range/idle-survival, Quick Connect no-save + remember (encrypted), config import (skip `Host *`, ProxyJump/missing-key warnings, duplicate-safe), security scans clean
+- **Release artifact prepared**: `ssh-terminal-v0.4.0-windows-amd64.zip` (exe + README + LICENSE only)
 
 ## Known Issues (Open)
 
@@ -119,9 +121,8 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 
 ## Next Development Direction
 
-### Now: finish v0.4.0 — Part 1: Connection UX
-- KeepAlive, Quick Connect, Import `~/.ssh/config` — **implemented, pending manual QA + user sign-off before tagging**
-- Do NOT auto-release; provide a test report first
+### v0.4.0 — Part 1: Connection UX — ✅ released
+- KeepAlive, Quick Connect, Import `~/.ssh/config` — implemented, QA passed, tagged `v0.4.0`
 
 ### Next: v0.5.0 — Part 2: Host Management + Secure Storage
 1. Host groups / folders
