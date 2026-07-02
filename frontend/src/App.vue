@@ -237,6 +237,15 @@ function confirmCloseProceed() {
 }
 
 const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
+// Drag-upload target feedback.
+const dropReady = computed(() => {
+  const id = sessions.activePane?.activeTabId;
+  return !!id && sessions.tabs[id]?.status === "open";
+});
+const dropTargetDir = computed(() => {
+  const id = sessions.activePane?.activeTabId;
+  return (id && sessions.sftpCwd[id]) || "会话工作目录";
+});
 </script>
 
 <template>
@@ -309,13 +318,20 @@ const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
 
     <!-- Drop overlay -->
     <Transition name="fade">
-      <div v-if="dropOverlay && hasActiveTab" class="drop-overlay">
+      <div v-if="dropOverlay" class="drop-overlay" :class="{ reject: !dropReady }">
         <div class="drop-card">
           <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 19V5M5 12l7-7 7 7" />
+            <path v-if="dropReady" d="M12 19V5M5 12l7-7 7 7" />
+            <path v-else d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
           </svg>
-          <div class="drop-title">释放以上传</div>
-          <div class="drop-sub">将上传到当前会话的 SFTP 工作目录</div>
+          <template v-if="dropReady">
+            <div class="drop-title">释放以上传</div>
+            <div class="drop-sub">目标：<span class="mono">{{ dropTargetDir }}</span></div>
+          </template>
+          <template v-else>
+            <div class="drop-title">无法上传</div>
+            <div class="drop-sub">请先打开并连接一个 SSH 会话</div>
+          </template>
         </div>
       </div>
     </Transition>
@@ -388,6 +404,12 @@ const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
 .drop-card svg {
   color: var(--accent);
   margin-bottom: 8px;
+}
+.drop-overlay.reject .drop-card {
+  border-color: var(--danger);
+}
+.drop-overlay.reject .drop-card svg {
+  color: var(--danger);
 }
 .drop-title {
   font-size: 16px;
