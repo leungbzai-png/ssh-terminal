@@ -10,9 +10,9 @@
 | Field | Value |
 |-------|-------|
 | Version | **v0.4.0** |
-| Git tag | `v0.4.0` |
+| Git tag | `v0.4.0` → points to `3b09cfc` |
 | Branch | `main` |
-| Latest commit | see release commit below |
+| Final release commit | `3b09cfc8ebb35c58761da56b1a1111defdfb3c22` (`3b09cfc`) |
 
 ---
 
@@ -31,9 +31,14 @@
 
 | Release | Date | Status | Artifacts |
 |---------|------|--------|-----------|
+| v0.4.0 | 2026-07-02 | ✅ Published (latest) | `ssh-terminal-v0.4.0-windows-amd64.zip` (4,745,983 bytes ≈ 4.53 MB) |
 | v0.3.0 | 2026-06-10 | ✅ Published | `ssh-terminal-v0.3.0-windows-amd64.zip` |
 | v0.2.0 | 2026-06-10 | ✅ Published | `ssh-terminal-v0.2.0-windows-amd64.zip` (4.51 MB) |
 | v0.1.0 | 2025 | Historical only (not on GitHub) | — |
+
+**v0.4.0 release:** tag `v0.4.0` points to commit `3b09cfc8ebb35c58761da56b1a1111defdfb3c22`.
+GitHub Release published and marked latest: https://github.com/leungbzai-png/ssh-terminal/releases/tag/v0.4.0
+Uploaded artifact: `ssh-terminal-v0.4.0-windows-amd64.zip` (4,745,983 bytes). Manual QA checklist A–G passed; git status clean after release.
 
 Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-windows-amd64.zip`
 
