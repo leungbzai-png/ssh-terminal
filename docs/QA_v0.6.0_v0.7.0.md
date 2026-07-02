@@ -59,6 +59,7 @@ Legend: [ ] not run · [x] pass · [!] fail (note details)
 - [ ] Right-click a file → 下载, choose a local path — footer shows 下载 % + filename
 - [ ] File is written to the chosen local path
 - [ ] Cancel the save dialog — nothing happens, no crash
+- [ ] **Multi-tab isolation:** open two SSH tabs in the SAME pane, both with SFTP open; start a download in tab A, switch to tab B mid-transfer — progress tracks the correct tab and does NOT bleed into the other tab's panel
 
 ### H. Drag-upload polish
 - [ ] Drag a file over the window while connected — overlay shows accept + target dir
