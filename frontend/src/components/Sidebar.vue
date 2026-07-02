@@ -14,6 +14,7 @@ const emit = defineEmits<{
   (e: "delete", id: string): void;
   (e: "settings"): void;
   (e: "keys"): void;
+  (e: "help"): void;
 }>();
 
 // Virtual group name for hosts without an explicit group.
@@ -57,6 +58,13 @@ const menuFor = ref<string | null>(null);
         <span class="name">SSH Terminal</span>
       </div>
       <div style="display:flex;gap:2px">
+        <button class="icon-btn" title="快捷键帮助 (F1)" @click="emit('help')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.5 9a2.5 2.5 0 0 1 4.5 1.5c0 1.5-2 2-2 3" />
+            <path d="M12 17h.01" />
+          </svg>
+        </button>
         <button class="icon-btn" title="SSH 密钥管理" @click="emit('keys')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="7.5" cy="15.5" r="3.5" />

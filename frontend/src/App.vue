@@ -14,6 +14,7 @@ import KeysDialog from "./components/KeysDialog.vue";
 import QuickConnectDialog from "./components/QuickConnectDialog.vue";
 import ImportConfigDialog from "./components/ImportConfigDialog.vue";
 import ImportHostsDialog from "./components/ImportHostsDialog.vue";
+import ShortcutHelpDialog from "./components/ShortcutHelpDialog.vue";
 import type { HostRecord, QuickConnectParams, HostsImportPreview, HostsImportResult } from "./wails.d";
 
 const settings = useSettings();
@@ -26,6 +27,7 @@ const showSettings = ref(false);
 const showKeys = ref(false);
 const showQuick = ref(false);
 const showImport = ref(false);
+const showShortcuts = ref(false);
 const hostsImportPreview = ref<HostsImportPreview | null>(null);
 
 // Close confirmation
@@ -95,6 +97,13 @@ const onFileDrop = async (payload: { paths: string[] }) => {
   }
 };
 
+function onGlobalKey(e: KeyboardEvent) {
+  if (e.key === "F1") {
+    e.preventDefault();
+    showShortcuts.value = !showShortcuts.value;
+  }
+}
+
 function dragEnter(e: DragEvent) {
   if (e.dataTransfer?.types?.includes("Files")) dropOverlay.value = true;
 }
@@ -114,12 +123,14 @@ onMounted(async () => {
   window.addEventListener("dragenter", dragEnter);
   window.addEventListener("dragleave", dragLeave);
   window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("keydown", onGlobalKey);
 });
 onBeforeUnmount(() => {
   window.runtime.EventsOff("app:confirmClose");
   window.runtime.EventsOff("app:filedrop");
   window.removeEventListener("dragenter", dragEnter);
   window.removeEventListener("dragleave", dragLeave);
+  window.removeEventListener("keydown", onGlobalKey);
 });
 
 watch(
@@ -224,6 +235,7 @@ const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
       @delete="(id) => hostsStore.remove(id)"
       @settings="showSettings = true"
       @keys="showKeys = true"
+      @help="showShortcuts = true"
     />
     <main class="workspace">
       <div class="panes" :data-pane-count="sessions.panes.length">
@@ -250,6 +262,7 @@ const hasActiveTab = computed(() => !!sessions.activePane?.activeTabId);
     />
 
     <SettingsDialog v-if="showSettings" @close="showSettings = false" />
+    <ShortcutHelpDialog v-if="showShortcuts" @close="showShortcuts = false" />
     <KeysDialog v-if="showKeys" @close="showKeys = false" />
     <QuickConnectDialog
       v-if="showQuick"
