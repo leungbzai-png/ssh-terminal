@@ -12,7 +12,7 @@ and a Vue 3 + TypeScript frontend. All user data lives next to the exe in `data/
 encrypted with AES-256-GCM. The app has zero external network calls beyond user-initiated SSH/SFTP.
 It is personal-developer-scale: no database, no server, no tests (yet). CI via GitHub Actions added in v0.3.0.
 
-**Current version: v0.3.0** (released 2026-06-10)
+**Current version: v0.4.0** (in development — Part 1: Connection UX)
 
 ---
 
@@ -98,6 +98,20 @@ construct paths manually.
 **CI is live** — `.github/workflows/ci.yml` runs on every push to `main`. Two jobs: Go (windows-latest), Frontend (ubuntu-latest). No `wailsjs/` dependency in the frontend — all Wails calls use `window.go.*` globals.
 
 ---
+
+## v0.4.0 Changes to Be Aware Of
+
+**`sshsess.Manager.Open` signature changed again** — now `Open(sessionID, h, cols, rows, timeoutSec, keepAliveSec int)`. `keepAliveSec > 0` starts a keepalive goroutine; 0 disables it. `app.go:keepAliveSecFrom(settings)` computes the effective value (0 when disabled, else the interval with a 30 s fallback). Both `OpenSession` and `SshOpenQuick` call `Open`.
+
+**KeepAlive goroutine lifecycle** — `Session` now has a `done chan struct{}` initialized in `Open` and `close(done)`d exactly once inside the `s.closed`-guarded block of `closeWithReason`. `startKeepAlive` selects on `done` + a ticker and only ever calls `client.SendRequest("keepalive@openssh.com", ...)`; it never touches stdin/stdout/stderr, so it cannot block the io pumps or the session-wait goroutine.
+
+**`SshOpenQuick(sessionID, QuickConnectParams, cols, rows)`** — opens a session from ephemeral credentials by building an **in-memory** `hosts.Host` and calling `Open`. It must NEVER persist. The plaintext password/passphrase exist only for the request; on the frontend they live in `sessions.quickParams[tabId]` and are deleted in `closeTab`. "Remember this host" is a separate frontend `UpsertHost` call (the normal encrypted path) — not part of `SshOpenQuick`.
+
+**`internal/sshconfig` package** — pure OpenSSH config parser. `Parse(io.Reader) []Entry` does NO filesystem access (keywords case-insensitive, `Key=Value` and `Key Value` both accepted, multi-pattern `Host` uses first concrete alias, wildcard-only blocks like `Host *` are skipped and their directives never leak forward). `~` expansion is `ExpandUser` (separate, uses `os.UserHomeDir`). `DefaultPath()` returns `~/.ssh/config`. Unit tests live in `sshconfig_test.go`.
+
+**Import APIs** (`app.go`): `DefaultSshConfigPath()`, `PickSshConfig()`, `PreviewSshConfig(path)` → `[]SshConfigPreviewEntry` (adds `identityExists`/`duplicate`), `ImportSshConfig(entries)` → `SshConfigImportResult`. Imported `IdentityFile` hosts use `authType:"key"` with `KeyPath` pointing at the **external** file — no key is copied into `data/`, nothing is decrypted. Duplicates (address+port+user, case-insensitive) are skipped.
+
+**Adding a new auth type still means updating BOTH** `buildAuth` and `buildAuthForDeploy` (unchanged from v0.3.0), plus `QuickConnectDialog.vue`'s auth `<select>` if it should be quick-connectable.
 
 ## Known Gotchas
 

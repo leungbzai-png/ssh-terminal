@@ -57,6 +57,36 @@ Rationale:
 
 ---
 
+## Why Quick Connect Secrets Never Touch Disk (v0.4.0)
+
+Quick Connect exists so a user can connect to a one-off host without cluttering
+their saved list. The security requirement is absolute: **a temporary password or
+passphrase must never be written to `hosts.json`.**
+
+Implementation follows that literally:
+- `App.SshOpenQuick` builds an **in-memory** `hosts.Host` and connects; it never
+  calls `hosts.Upsert`, so nothing is persisted.
+- On the frontend the credentials live only in `sessions.quickParams[tabId]` and
+  are deleted in `closeTab`, so the plaintext does not outlive the tab.
+- The only way a Quick Connect host is saved is the explicit "记住此主机" checkbox,
+  which routes through the normal `UpsertHost` path — i.e. the same AES-256-GCM
+  encryption every saved host already uses. There is no separate, weaker path.
+
+## Why Imported `~/.ssh/config` Keys Are Referenced, Not Copied (v0.4.0)
+
+When importing `~/.ssh/config`, an `IdentityFile` is stored as an external
+`KeyPath` reference (`authType:"key"`), exactly like a manually-added external-key
+host. We deliberately do **not** copy the private key into `data/`:
+- Copying a plaintext private key into `data/` would create a second, unencrypted
+  copy of a secret — the opposite of the storage model.
+- If a user later wants the key managed and encrypted (`.key.enc`), that is an
+  explicit, separate action (planned for v0.5.0 "encrypted private-key import"),
+  not a silent side effect of config import.
+
+The `sshconfig.Parse` function is intentionally pure (no filesystem access) so the
+tricky OpenSSH-syntax handling is unit-testable in isolation; `~` expansion and
+existence checks are separate, caller-side concerns.
+
 ## Why Strict `known_hosts` Verification?
 
 The app does not have a "Trust All Hosts" option. This is intentional.

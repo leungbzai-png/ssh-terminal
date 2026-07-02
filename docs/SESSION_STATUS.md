@@ -1,7 +1,7 @@
 # Session Status — SSH Terminal
 
-**Last updated:** 2026-06-10  
-**Updated by:** Claude Sonnet 4.6 (v0.3.0 development start)
+**Last updated:** 2026-07-02  
+**Updated by:** Claude Opus 4.8 (v0.4.0 Part 1 — Connection UX)
 
 ---
 
@@ -9,10 +9,10 @@
 
 | Field | Value |
 |-------|-------|
-| Version | **v0.3.0** |
-| Git tag | `v0.3.0` |
+| Version | **v0.4.0** (in development, not yet tagged) |
+| Git tag | `v0.3.0` (latest release) |
 | Branch | `main` |
-| Latest commit | `addc6bf` — chore: release v0.3.0 |
+| Latest release commit | `addc6bf` — chore: release v0.3.0 |
 
 ---
 
@@ -94,6 +94,14 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 
 ---
 
+### v0.4.0 — Part 1: Connection UX (in development 2026-07-02)
+- Restructured `docs/ROADMAP.md` into 3 parts (v0.4.0 / v0.5.0 / v0.6.0–v1.0.0)
+- **SSH KeepAlive**: `config.Settings` gained `KeepAliveEnabled` (default true) + `KeepAliveIntervalSec` (default 30); `sshsess.Manager.Open` gained a `keepAliveSec` param and a `done`-channel-driven keepalive goroutine sending `keepalive@openssh.com`; `SettingsDialog.vue` + settings store + `wails.d.ts` updated
+- **Quick Connect**: new `SshOpenQuick` API + `QuickConnectParams` (in-memory only, never persisted); `QuickConnectDialog.vue`; `sessions` store `quickParams` map + `openQuickInActivePane` (cleared in `closeTab`); `Terminal.vue` branches quick vs saved; "记住此主机" reuses `UpsertHost`
+- **Import `~/.ssh/config`**: new `internal/sshconfig` package (pure parser + unit tests); `DefaultSshConfigPath`/`PickSshConfig`/`PreviewSshConfig`/`ImportSshConfig` APIs; `ImportConfigDialog.vue` with preview, duplicate/missing-key badges; external IdentityFile referenced by path only
+- `Sidebar.vue` footer: 快速连接 / 新增主机 / 导入配置; `App.vue` wiring; `AppInfo` version → 0.4.0
+- Verified: `go vet ./...`, `go build ./...`, `go test ./...`, `frontend npm run build`, `build-windows.bat` all pass
+
 ## Known Issues (Open)
 
 | ID | Severity | Description | File | Planned Fix |
@@ -111,22 +119,19 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 
 ## Next Development Direction
 
-### Next: v0.4.0 — Advanced SSH
-1. Import hosts from `~/.ssh/config`
-2. Quick connect (no-save temporary session)
-3. Host export/import (JSON backup)
-4. ProxyJump / bastion host support
-5. Session keep-alive (ServerAliveInterval)
+### Now: finish v0.4.0 — Part 1: Connection UX
+- KeepAlive, Quick Connect, Import `~/.ssh/config` — **implemented, pending manual QA + user sign-off before tagging**
+- Do NOT auto-release; provide a test report first
 
-### Medium Term (v0.4.0)
-5. ProxyJump / bastion host support
-6. Local port forwarding
-7. Session keep-alive (ServerAliveInterval)
+### Next: v0.5.0 — Part 2: Host Management + Secure Storage
+1. Host groups / folders
+2. Host search (formalize)
+3. Safe host export/import (no secrets by default)
+4. Encrypted private-key import (`.key.enc`)
+5. Security-policy enforcement / no plaintext secrets on disk
 
-### Before v1.0.0
-8. Unit tests for `cryptox`, `portable`, `config`, `keymgr`
-9. CI pipeline stable
-10. macOS build exploration
+### Later (Part 3: v0.6.0 → v1.0.0)
+- Terminal UX (v0.6.0), SFTP UX (v0.7.0), Advanced SSH incl. ProxyJump/forwarding/SOCKS (v0.8.0), Hardening + tests (v0.9.0), stable tag (v1.0.0)
 
 ---
 

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - Unreleased
+
+### Added
+- **SSH KeepAlive**: periodic `keepalive@openssh.com` requests keep idle sessions and NAT mappings alive. New settings `keepAliveEnabled` (default on) and `keepAliveIntervalSec` (default 30 s, range 10–600 s) in the Settings dialog. The keepalive goroutine exits cleanly when the session closes and never blocks the stdout/stderr/wait goroutines.
+- **Quick Connect**: connect to a host without saving it. Address / port / user / auth (password or external key file). The temporary password and passphrase live only in memory and are never written to `hosts.json`. An optional "记住此主机" checkbox saves the host through the existing AES-256-GCM encrypted path.
+- **Import `~/.ssh/config`**: parse basic OpenSSH client config (`Host`, `HostName`, `User`, `Port`, `IdentityFile`) with a preview before import. Duplicate hosts (same address+port+user) are skipped, not overwritten. `~` is expanded; missing `IdentityFile` paths produce a warning without crashing. Complex directives (`Host *`, `Match`, `Include`, `ProxyJump`, forwards) are skipped with a warning. Imported `IdentityFile` keys are referenced by path only — no plaintext private key is ever copied into `data/`.
+- New `internal/sshconfig` package with a pure, unit-tested OpenSSH config parser.
+
+### Changed
+- `sshsess.Manager.Open` now takes an additional `keepAliveSec int` parameter (0 disables keepalive). Internal API only.
+
 ## [0.3.0] - 2026-06-10
 
 ### Added
