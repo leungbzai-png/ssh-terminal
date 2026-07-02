@@ -1,6 +1,6 @@
 # Product Roadmap — SSH Terminal
 
-Last updated: 2026-06-10 (v0.3.0 released)
+Last updated: 2026-07-02 (v0.4.0 in progress — Part 1: Connection UX)
 
 ---
 
@@ -63,26 +63,26 @@ Scoring: **Benefit** 1–5 (user value), **Difficulty** 1–5 (engineering effor
 
 | # | Feature | Benefit | Difficulty | Priority | Version |
 |---|---------|---------|------------|----------|---------|
-| 1 | **Custom in-app dialogs** (replace SFTP `prompt`/`confirm`) | 3 | 1 | 4.5 | v0.3.0 |
-| 2 | **Import hosts from `~/.ssh/config`** | 5 | 2 | 4.0 | v0.3.0 |
-| 3 | **SFTP recursive delete** | 4 | 2 | 3.0 | v0.3.0 |
-| 4 | **Configurable connection timeout** (currently hardcoded 15s) | 3 | 1 | 2.5 | v0.3.0 |
-| 5 | **Quick connect** (connect without saving host) | 4 | 2 | 3.0 | v0.3.0 |
-| 6 | **CI / GitHub Actions** (`go vet` + `wails build` on push) | 4 | 1 | 3.5 | v0.3.0 |
-| 7 | **Host export / import** (backup host list) | 3 | 2 | 2.0 | v0.3.0 |
-| 8 | **ProxyJump / bastion host** (`-J` style) | 5 | 3 | 3.5 | v0.4.0 |
-| 9 | **Local port forwarding** (`-L` style) | 4 | 3 | 2.5 | v0.4.0 |
-| 10 | **SSH agent forwarding** | 3 | 2 | 2.0 | v0.4.0 |
-| 11 | **Host groups / folders** in sidebar | 3 | 2 | 2.0 | v0.4.0 |
+| 1 | **Custom in-app dialogs** (replace SFTP `prompt`/`confirm`) | 3 | 1 | 4.5 | v0.3.0 ✅ |
+| 2 | **Import hosts from `~/.ssh/config`** | 5 | 2 | 4.0 | v0.4.0 |
+| 3 | **SFTP recursive delete** | 4 | 2 | 3.0 | v0.3.0 ✅ |
+| 4 | **Configurable connection timeout** (currently hardcoded 15s) | 3 | 1 | 2.5 | v0.3.0 ✅ |
+| 5 | **Quick connect** (connect without saving host) | 4 | 2 | 3.0 | v0.4.0 |
+| 6 | **CI / GitHub Actions** (`go vet` + `wails build` on push) | 4 | 1 | 3.5 | v0.3.0 ✅ |
+| 7 | **Host export / import** (backup host list) | 3 | 2 | 2.0 | v0.5.0 |
+| 8 | **ProxyJump / bastion host** (`-J` style) | 5 | 3 | 3.5 | v0.8.0 |
+| 9 | **Local port forwarding** (`-L` style) | 4 | 3 | 2.5 | v0.8.0 |
+| 10 | **SSH agent forwarding** | 3 | 2 | 2.0 | v0.8.0 |
+| 11 | **Host groups / folders** in sidebar | 3 | 2 | 2.0 | v0.5.0 |
 | 12 | **Session keep-alive** (ServerAliveInterval) | 4 | 1 | 3.5 | v0.4.0 |
-| 13 | **Unit tests** for `cryptox`, `config`, `keymgr` | 3 | 2 | 2.0 | v0.4.0 |
-| 14 | **SFTP file preview** (text/image) | 3 | 3 | 1.5 | v0.5.0 |
-| 15 | **Terminal color scheme picker** | 2 | 2 | 1.0 | v0.5.0 |
-| 16 | **SFTP two-pane view** (local ↔ remote) | 4 | 4 | 2.0 | v0.5.0 |
-| 17 | **Session logging to file** | 3 | 2 | 2.0 | v0.5.0 |
-| 18 | **macOS build support** (Wails supports it) | 4 | 4 | 2.0 | v1.0.0 |
-| 19 | **Keyboard shortcut customization** | 2 | 3 | 0.5 | v1.0.0 |
-| 20 | **Plugin / extension API** | 3 | 5 | 0.5 | v1.0.0+ |
+| 13 | **Unit tests** for `cryptox`, `config`, `keymgr` | 3 | 2 | 2.0 | v0.9.0 |
+| 14 | **SFTP file preview** (text/image) | 3 | 3 | 1.5 | v0.7.0 |
+| 15 | **Terminal color scheme picker** | 2 | 2 | 1.0 | v0.6.0 |
+| 16 | **SFTP two-pane view** (local ↔ remote) | 4 | 4 | 2.0 | v0.7.0 |
+| 17 | **Session logging to file** | 3 | 2 | 2.0 | v0.7.0 |
+| 18 | **macOS build support** (Wails supports it) | 4 | 4 | 2.0 | post-v1.0.0 |
+| 19 | **Keyboard shortcut help / customization** | 2 | 3 | 0.5 | v0.6.0 |
+| 20 | **Plugin / extension API** | 3 | 5 | 0.5 | out of scope (non-goal) |
 
 ---
 
@@ -105,51 +105,82 @@ Scoring: **Benefit** 1–5 (user value), **Difficulty** 1–5 (engineering effor
 
 ---
 
-### v0.4.0 — Advanced SSH
-**Theme:** Close the gap with Xshell/Tabby on core SSH features
+## Path to v1.0.0 — Three Parts
 
-- [ ] ProxyJump / bastion host support
-- [ ] Local port forwarding (`-L` style)
-- [ ] SSH agent forwarding
-- [ ] ServerAliveInterval keep-alive per host
-- [ ] Host grouping / folders in sidebar
-- [ ] Unit tests for `cryptox`, `portable`, `config`, `keymgr`
-- [ ] Keyboard shortcut reference (Ctrl+? help panel)
+The road from v0.3.0 to a stable v1.0.0 is split into three parts. Guiding principles:
+**stability first, small iterations, 1–3 core features per version, no large refactors,
+no scope creep beyond a lightweight SSH + SFTP client.** No cloud sync, telemetry,
+account system, or plugin system will be added.
 
-**Breaking changes:** `hosts.json` may need schema addition for new per-host options  
-**Estimated effort:** 6–8 weeks solo
-
----
-
-### v0.5.0 — File Management
-**Theme:** SFTP as a first-class feature
-
-- [ ] SFTP two-pane view (local left, remote right, drag between)
-- [ ] SFTP file preview (text files, images)
-- [ ] Session/terminal logging to file
-- [ ] Terminal color scheme picker (presets + custom)
-- [ ] SFTP bookmark/favorites for remote directories
-- [ ] Batch download (select multiple, download as zip)
-
-**Breaking changes:** None  
-**Estimated effort:** 6–8 weeks solo
+| Part | Versions | Theme |
+|------|----------|-------|
+| Part 1 | v0.4.0 | Connection UX |
+| Part 2 | v0.5.0 | Host Management + Secure Storage |
+| Part 3 | v0.6.0 – v0.9.x → v1.0.0 | Terminal/SFTP Polish + Production Readiness |
 
 ---
 
-### v1.0.0 — Stability & Reach
-**Theme:** Production-ready for all users
+## Part 1 — v0.4.0 — Connection UX
+**Theme:** Make getting connected faster and more resilient. ← **current work**
 
-**Prerequisites (all must be complete before tagging v1.0.0):**
-- [ ] At least one release cycle with no Critical/High bugs reported
-- [ ] Unit test coverage for all crypto and config paths
-- [ ] CI pipeline passing on all PRs
-- [ ] macOS build explored (Wails supports it; needs code signing)
-- [ ] CHANGELOG maintained through at least 3 release cycles
-- [ ] Performance profiling (startup time, memory at idle, large terminal output)
-- [ ] Accessibility: keyboard-only navigation for dialogs
-- [ ] Documentation for users (beyond README)
+- [ ] **SSH KeepAlive** — `keepAliveEnabled` + `keepAliveIntervalSec` settings (default on, 30 s); sends `keepalive@openssh.com` after the session is established; goroutine exits cleanly on close
+- [ ] **Quick Connect** — connect without saving a host; temporary password/passphrase live in memory only, never written to `hosts.json`; optional "Remember this host" reuses the existing encrypted storage path
+- [ ] **Import `~/.ssh/config`** — parse basic OpenSSH config (`Host`, `HostName`, `User`, `Port`, `IdentityFile`); preview before import; skip duplicates; skip/flag complex directives (`Host *`, `Match`, `Include`, `ProxyJump`, forwards); `~` expansion; imported `IdentityFile` is *referenced*, never copied as plaintext into `data/`
 
-**Estimated timeline:** 4–6 months from v0.5.0
+**Explicitly NOT in v0.4.0:** ProxyJump, LocalForward, RemoteForward, dynamic SOCKS,
+agent forwarding, host groups, password-storage refactor, SFTP two-pane, plugin system.
+
+**Breaking changes:** None (settings additions are backward-compatible; `Manager.Open` gains a `keepAliveSec` parameter — internal only)
+
+---
+
+## Part 2 — v0.5.0 — Host Management + Secure Storage
+**Theme:** Organize many hosts and harden secret handling.
+
+- [ ] Host groups / folders in sidebar
+- [ ] Host search (already partly present; formalize + improve)
+- [ ] Safe host export / import (JSON backup; **never** exports password / passphrase / private key by default)
+- [ ] Encrypted private-key import (import an external key → encrypt to `.key.enc`; no plaintext key on disk)
+- [ ] Security-policy enforcement (assert no plaintext secrets are ever persisted)
+- [ ] No plaintext secrets on disk (audit + guardrails)
+
+**Breaking changes:** Possible `hosts.json` schema additions (group metadata) — backward-compatible
+
+---
+
+## Part 3 — v0.6.0 → v1.0.0 — Terminal/SFTP Polish + Production Readiness
+**Theme:** Refine the day-to-day experience and get to a stable release.
+
+### v0.6.0 — Terminal UX
+- [ ] Terminal search improvements
+- [ ] Font settings (family/size/ligatures) polish
+- [ ] Tab restore (reopen last session set)
+- [ ] Keyboard shortcut help panel (Ctrl+? reference)
+
+### v0.7.0 — SFTP UX
+- [ ] Transfer progress refinements
+- [ ] Drag-upload polish
+- [ ] Remote directory bookmarks
+- [ ] Optional file preview (text/image)
+
+### v0.8.0 — Advanced SSH
+- [ ] ProxyJump / bastion host
+- [ ] Local / remote port forwarding
+- [ ] Dynamic SOCKS proxy
+- [ ] Auto reconnect
+
+### v0.9.0 — Hardening
+- [ ] Unit tests: `cryptox`, `config`, `keymgr` (and `sshconfig` parser)
+- [ ] CI coverage expansion
+- [ ] Documentation + QA pass
+- [ ] Performance profiling (startup, idle memory, large output)
+
+### v1.0.0 — Stable
+- [ ] Stable tag only — **no new major feature**
+- [ ] At least one release cycle with no Critical/High bugs
+- [ ] CHANGELOG maintained through the full 0.4–0.9 cycle
+
+**Estimated timeline:** paced by stability, not calendar.
 
 ---
 
@@ -162,3 +193,6 @@ These will likely never be in scope for this project:
 - **Serial port / telnet** — scope creep; use Tabby for those
 - **Built-in terminal multiplexer** (tmux/screen replacement) — use the real tools
 - **Cloud sync of credentials** — incompatible with the security model (local-only encryption)
+- **Telemetry / analytics** — zero network calls beyond user-initiated SSH/SFTP is a core promise
+- **Account system / login** — the app is local and portable; no identity layer
+- **Plugin / extension system** — keeps the surface small and the build reproducible
