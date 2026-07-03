@@ -6,11 +6,14 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
 import { useSessions } from "../stores/sessions";
 import { useSettings } from "../stores/settings";
+import { useHosts } from "../stores/hosts";
 import { useTheme } from "../composables/useTheme";
+import type { AutoReconnectConfig } from "../wails.d";
 
 const props = defineProps<{ tabId: string }>();
 const sessions = useSessions();
 const settings = useSettings();
+const hosts = useHosts();
 const theme = useTheme();
 
 const wrap = ref<HTMLElement | null>(null);
@@ -21,6 +24,15 @@ let search: SearchAddon | null = null;
 let ro: ResizeObserver | null = null;
 let unlistenData: (() => void) | null = null;
 let unlistenClose: (() => void) | null = null;
+let unlistenTunnel: (() => void) | null = null;
+
+// Auto-reconnect state. A "burst" of attempts starts on an unexpected drop and
+// is capped by the host's maxAttempts; a clean exit or user close never starts
+// one. reconnectCancelled lets the user (or unmount) stop a pending burst.
+let reconnectAttempts = 0;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectCancelled = false;
+const autoStatus = ref("");
 
 const showSearch = ref(false);
 const searchText = ref("");
@@ -89,8 +101,73 @@ async function startSession() {
 
 async function reconnect() {
   if (!term) return;
+  cancelAutoReconnect(); // a manual reconnect supersedes any pending auto burst
+  reconnectAttempts = 0;
   term.writeln("\r\n\x1b[36m— reconnecting…\x1b[0m\r\n");
   await startSession();
+}
+
+// autoReconnectCfg reads the host's (non-secret) auto-reconnect config.
+function autoReconnectCfg(): AutoReconnectConfig | undefined {
+  const h = hosts.hosts.find((x) => x.id === tab.value?.hostId);
+  return h?.advanced?.autoReconnect;
+}
+
+function cancelAutoReconnect() {
+  reconnectCancelled = true;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  autoStatus.value = "";
+}
+
+// scheduleReconnect queues the next attempt in the current burst, unless the
+// cap is reached or the burst was cancelled.
+function scheduleReconnect(cfg: AutoReconnectConfig) {
+  if (reconnectCancelled) return;
+  const max = cfg.maxAttempts || 3;
+  if (reconnectAttempts >= max) {
+    term?.writeln(`\r\n\x1b[33m— 自动重连已达上限（${max} 次），已停止\x1b[0m`);
+    autoStatus.value = "";
+    return;
+  }
+  const delay = Math.min(60, Math.max(1, cfg.delaySeconds || 3));
+  autoStatus.value = `将在 ${delay}s 后自动重连 (${reconnectAttempts + 1}/${max})…`;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    void attemptReconnect(cfg);
+  }, delay * 1000);
+}
+
+async function attemptReconnect(cfg: AutoReconnectConfig) {
+  if (reconnectCancelled || !term) return;
+  reconnectAttempts++;
+  const max = cfg.maxAttempts || 3;
+  autoStatus.value = `自动重连中… (${reconnectAttempts}/${max})`;
+  term.writeln(`\r\n\x1b[36m— ${autoStatus.value}\x1b[0m`);
+  await startSession();
+  if (tab.value?.status === "open") {
+    // Success: reset the burst so a future drop starts fresh.
+    reconnectAttempts = 0;
+    autoStatus.value = "";
+    return;
+  }
+  // A failed attempt sets status to "error" and emits NO close event, so we
+  // must chain the next attempt ourselves (never re-firing the close handler).
+  scheduleReconnect(cfg);
+}
+
+// onUnexpectedClose decides whether to start an auto-reconnect burst. It fires
+// only on a non-clean drop that was not a user close.
+function onUnexpectedClose(reason: string) {
+  const cfg = autoReconnectCfg();
+  if (!cfg || !cfg.enabled) return;
+  // reason "" == clean exit (e.g. user typed `exit`); "user closed" == tab close.
+  if (!reason || reason === "user closed") return;
+  reconnectCancelled = false;
+  reconnectAttempts = 0;
+  scheduleReconnect(cfg);
 }
 
 function applySettings() {
@@ -237,11 +314,24 @@ onMounted(async () => {
   const onClose = (reason: string) => {
     if (term && reason) term.writeln(`\r\n\x1b[90m— session closed: ${reason}\x1b[0m`);
     sessions.setTabStatus(props.tabId, "closed");
+    onUnexpectedClose(reason);
+  };
+  const tunnelEvt = `ssh:tunnel:${props.tabId}`;
+  const onTunnel = (st: { kind: string; name: string; listen: string; ok: boolean; err?: string }) => {
+    if (!term) return;
+    const label = st.name ? `${st.kind}/${st.name}` : st.kind;
+    if (st.ok) {
+      term.writeln(`\r\n\x1b[32m— 隧道已建立 [${label}] ${st.listen}\x1b[0m`);
+    } else {
+      term.writeln(`\r\n\x1b[31m— 隧道失败 [${label}] ${st.listen}: ${st.err || ""}\x1b[0m`);
+    }
   };
   window.runtime.EventsOn(dataEvt, onData);
   window.runtime.EventsOn(closeEvt, onClose);
+  window.runtime.EventsOn(tunnelEvt, onTunnel);
   unlistenData = () => window.runtime.EventsOff(dataEvt);
   unlistenClose = () => window.runtime.EventsOff(closeEvt);
+  unlistenTunnel = () => window.runtime.EventsOff(tunnelEvt);
 
   ro = new ResizeObserver(() => fit?.fit());
   ro.observe(wrap.value);
@@ -268,8 +358,10 @@ watch(
 );
 
 onBeforeUnmount(async () => {
+  cancelAutoReconnect();
   unlistenData?.();
   unlistenClose?.();
+  unlistenTunnel?.();
   ro?.disconnect();
   try {
     await window.go.main.App.CloseSession(props.tabId);
@@ -321,6 +413,14 @@ onBeforeUnmount(async () => {
           <div class="reconnect-sub">{{ tab?.hostName }}（已从上次会话恢复，未自动连接）</div>
           <button type="button" class="primary" @click="startSession">连接</button>
         </div>
+      </div>
+    </Transition>
+
+    <Transition name="fade">
+      <div v-if="autoStatus" class="auto-banner">
+        <span class="spin" />
+        <span>{{ autoStatus }}</span>
+        <button type="button" class="cancel" @click="cancelAutoReconnect">取消</button>
       </div>
     </Transition>
 
@@ -406,6 +506,42 @@ onBeforeUnmount(async () => {
   height: 24px;
   font-size: 10.5px;
   font-weight: 600;
+}
+
+.auto-banner {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  color: var(--fg);
+  z-index: 35;
+}
+.auto-banner .spin {
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--fg-subtle);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: auto-spin 0.7s linear infinite;
+}
+@keyframes auto-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.auto-banner .cancel {
+  font-size: 11px;
+  padding: 2px 8px;
+  color: var(--danger);
 }
 
 .reconnect-overlay {

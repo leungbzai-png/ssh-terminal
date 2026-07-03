@@ -169,6 +169,16 @@ function newHost() {
 function editHost(h: HostRecord) {
   editingHost.value = { ...h };
 }
+async function saveHost(h: HostRecord) {
+  try {
+    await hostsStore.upsert(h);
+    editingHost.value = null;
+  } catch (e: any) {
+    // Backend rejected the host (e.g. invalid Advanced SSH config). Keep the
+    // dialog open so the user can fix it.
+    window.alert("保存失败：" + (e?.message || e));
+  }
+}
 function openHost(h: HostRecord) {
   sessions.openInActivePane(h);
 }
@@ -279,12 +289,7 @@ const dropTargetDir = computed(() => {
     <HostDialog
       v-if="editingHost"
       :host="editingHost"
-      @save="
-        async (h) => {
-          await hostsStore.upsert(h);
-          editingHost = null;
-        }
-      "
+      @save="saveHost"
       @cancel="editingHost = null"
     />
 

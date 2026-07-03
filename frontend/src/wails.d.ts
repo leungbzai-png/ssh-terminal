@@ -121,6 +121,56 @@ export interface SshConfigImportResult {
   names: string[];
 }
 
+// --- Advanced SSH (v0.8.0): all fields are NON-SECRET ---
+
+export interface ProxyJumpConfig {
+  mode: "savedHost" | "manual";
+  jumpHostId?: string; // when mode === savedHost
+  address?: string; // when mode === manual (key-only, no password)
+  port?: number;
+  user?: string;
+  keyPath?: string;
+}
+
+export interface PortForward {
+  name?: string;
+  localHost?: string; // default 127.0.0.1
+  localPort?: number;
+  remoteHost?: string;
+  remotePort?: number;
+  enabled: boolean;
+}
+
+export interface DynamicForward {
+  name?: string;
+  localHost?: string; // default 127.0.0.1
+  localPort?: number;
+  enabled: boolean;
+}
+
+export interface AutoReconnectConfig {
+  enabled: boolean;
+  maxAttempts: number; // 0..10
+  delaySeconds: number; // 1..60
+}
+
+export interface AdvancedSSH {
+  proxyJump?: ProxyJumpConfig;
+  localForwards?: PortForward[];
+  remoteForwards?: PortForward[];
+  dynamicForwards?: DynamicForward[];
+  autoReconnect?: AutoReconnectConfig;
+}
+
+// Tunnel status event payload (ssh:tunnel:<sessionID>). Non-secret.
+export interface TunnelStatus {
+  kind: "local" | "remote" | "dynamic";
+  name: string;
+  listen: string;
+  ok: boolean;
+  err?: string;
+}
+
 // Safe host export/import: non-secret host metadata only (no password,
 // passphrase, or private-key material).
 export interface SafeHost {
@@ -133,6 +183,7 @@ export interface SafeHost {
   managedKeyId?: string;
   group?: string;
   note?: string;
+  advanced?: AdvancedSSH;
 }
 
 export interface HostImportPreviewEntry extends SafeHost {
@@ -179,6 +230,7 @@ export interface HostRecord {
   managedKeyId?: string;
   group?: string;
   note?: string;
+  advanced?: AdvancedSSH;
   updatedAt?: number;
 }
 
