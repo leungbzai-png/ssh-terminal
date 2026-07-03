@@ -168,21 +168,29 @@ agent forwarding, host groups, password-storage refactor, SFTP two-pane, plugin 
 **Status:** Released as **v0.7.0** on 2026-07-03. The v0.6.0 Terminal UX and v0.7.0 SFTP UX
 scopes were bundled into one QA build and shipped together under the single tag `v0.7.0`.
 There is intentionally **no separate v0.6.0 tag or GitHub Release**. v0.4.0 and v0.5.0
-tags/releases are unchanged. v0.8.0 has **not** been started.
+tags/releases are unchanged. (v0.8.0 + v0.9.0 later shipped together as v0.9.0 — see below.)
 
-### v0.8.0 — Advanced SSH
-- [ ] ProxyJump / bastion host
-- [ ] Local / remote port forwarding
-- [ ] Dynamic SOCKS proxy
-- [ ] Auto reconnect
+### v0.8.0 — Advanced SSH ← **released as part of v0.9.0 (no separate v0.8.0 tag)**
+- [x] ProxyJump / bastion host (saved-host reference or key-only manual)
+- [x] Local / remote port forwarding
+- [x] Dynamic SOCKS proxy (SOCKS5)
+- [x] Auto reconnect (capped, unexpected-drop only)
+- [x] Connection diagnostics (error categories)
 
-### v0.9.0 — Hardening
-- [ ] Unit tests: `cryptox`, `config`, `keymgr` (and `sshconfig` parser)
-- [ ] CI coverage expansion
-- [ ] Documentation + QA pass
-- [ ] Performance profiling (startup, idle memory, large output)
+### v0.9.0 — Hardening ← **released 2026-07-03 (tag v0.9.0)**
+- [x] Storage compatibility + corrupt-file handling (v0.7.0 data loads unchanged)
+- [x] Secret + safe-export regression tests (Advanced SSH carries no secret)
+- [x] Input validation (backend, not only UI)
+- [x] Runtime cleanup (tunnels/sessions/reconnect release resources)
+- [x] Log/error/event redaction
+- [x] Documentation + manual QA checklist (`docs/QA_v0.8.0_v0.9.0.md`)
 
-### v1.0.0 — Stable
+**Status:** Released as combined **v0.9.0** on 2026-07-03. The v0.8.0 Advanced SSH
+and v0.9.0 Hardening scopes shipped together under the single tag `v0.9.0`; there
+is intentionally **no separate v0.8.0 tag or GitHub Release**. v0.4.0 / v0.5.0 /
+v0.7.0 tags/releases are unchanged. **v1.0.0 has not been started.**
+
+### v1.0.0 — Stable (NOT started)
 - [ ] Stable tag only — **no new major feature**
 - [ ] At least one release cycle with no Critical/High bugs
 - [ ] CHANGELOG maintained through the full 0.4–0.9 cycle

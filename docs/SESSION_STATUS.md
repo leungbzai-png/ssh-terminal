@@ -1,7 +1,7 @@
 # Session Status — SSH Terminal
 
 **Last updated:** 2026-07-03  
-**Updated by:** Claude Opus 4.8 (v0.7.0 release — Terminal & SFTP UX, combined release)
+**Updated by:** Claude Opus 4.8 (v0.9.0 release — Advanced SSH + Hardening, combined release)
 
 ---
 
@@ -9,11 +9,11 @@
 
 | Field | Value |
 |-------|-------|
-| Version | **v0.7.0 (released 2026-07-03 — combined v0.6.0 Terminal UX + v0.7.0 SFTP UX)** |
-| Latest released version | **v0.7.0** (tag `v0.7.0`) |
-| Git tag | `v0.4.0`, `v0.5.0` unchanged; `v0.7.0` created; **no separate `v0.6.0` tag** |
+| Version | **v0.9.0 (released 2026-07-03 — combined v0.8.0 Advanced SSH + v0.9.0 Hardening)** |
+| Latest released version | **v0.9.0** (tag `v0.9.0`) |
+| Git tag | `v0.4.0`, `v0.5.0`, `v0.7.0` unchanged; `v0.9.0` created; **no separate `v0.6.0`/`v0.8.0` tag** |
 | Branch | `main` |
-| Previous release commit | `6343795` (v0.5.0) |
+| Previous release commit | `187cabf` (v0.7.0) |
 
 ---
 
@@ -32,7 +32,8 @@
 
 | Release | Date | Status | Artifacts |
 |---------|------|--------|-----------|
-| v0.7.0 | 2026-07-03 | ✅ Published (latest) — combined v0.6.0 Terminal UX + v0.7.0 SFTP UX | `ssh-terminal-v0.7.0-windows-portable.zip` |
+| v0.9.0 | 2026-07-03 | ✅ Published (latest) — combined v0.8.0 Advanced SSH + v0.9.0 Hardening | `ssh-terminal-v0.9.0-windows-portable.zip` |
+| v0.7.0 | 2026-07-03 | ✅ Published — combined v0.6.0 Terminal UX + v0.7.0 SFTP UX | `ssh-terminal-v0.7.0-windows-portable.zip` |
 | v0.5.0 | 2026-07-02 | ✅ Published | `ssh-terminal-v0.5.0-windows-amd64.zip` (4,754,440 bytes ≈ 4.53 MB) |
 | v0.4.0 | 2026-07-02 | ✅ Published | `ssh-terminal-v0.4.0-windows-amd64.zip` (4,745,983 bytes ≈ 4.53 MB) |
 | v0.3.0 | 2026-06-10 | ✅ Published | `ssh-terminal-v0.3.0-windows-amd64.zip` |
@@ -174,8 +175,16 @@ Manual QA A–I passed; tag `v0.5.0` + GitHub Release published.
 ### v0.6.0 + v0.7.0 — Part 3 (Terminal UX + SFTP UX) — ✅ released 2026-07-03 as v0.7.0
 - Combined release under a single `v0.7.0` tag; no separate v0.6.0 tag/Release.
 
-### Next: v0.8.0 — Advanced SSH — do not start unprompted
-- ProxyJump/bastion, local/remote port forwarding, dynamic SOCKS proxy, auto reconnect (planning only; not started)
+### v0.8.0 + v0.9.0 — Advanced SSH + Hardening — ✅ released 2026-07-03 as v0.9.0
+- New Go packages: `internal/redact` (value-based secret scrubbing). New files in `internal/sshsess`: `tunnel.go` (local/remote/dynamic SOCKS forwards with a per-session tunnel set), `socks.go` (SOCKS5 CONNECT parsing), `diag.go` (error classification). `manager.go` refactored to `Open(OpenOptions)` with single-level ProxyJump (bastion client tracked + closed with the session).
+- `internal/hosts/advanced.go`: non-secret `AdvancedSSH` (ProxyJump / forwards / auto-reconnect) with `Normalize()` validation; `Host.Advanced` pointer (omitempty → v0.7.0 data loads unchanged); included in `SafeHost` export. Corrupt-`hosts.json` hardening (error, no panic, no silent overwrite).
+- `app.go`: jump-host resolution (saved-host secrets or key-only manual), tunnel-status events (`ssh:tunnel:<id>`), redacted + diagnosed connect errors. Version → 0.9.0.
+- Frontend: HostDialog collapsed "高级 SSH" panel; Terminal auto-reconnect burst (capped, unexpected-drop only, cancellable) + tunnel status; `wails.d.ts` Advanced SSH / TunnelStatus types.
+- Tests: `internal/hosts/advanced_test.go` + `compat_test.go`, `internal/redact/redact_test.go`, `internal/sshsess/diag_test.go` + `socks_test.go`, `advanced_app_test.go` (connect-error redaction, jump resolution, advanced export safety). All `go test ./...` + `go vet` pass; `npm run build` + `build-windows.bat` pass. `go test -race` not run (no gcc/CGO here).
+- **Released** as combined **v0.9.0**: annotated tag `v0.9.0`, GitHub Release (latest), artifact `ssh-terminal-v0.9.0-windows-portable.zip`. **No separate v0.8.0 tag/Release.** v0.4.0 / v0.5.0 / v0.7.0 tags unchanged. Manual QA checklist: `docs/QA_v0.8.0_v0.9.0.md`.
+
+### Next: v1.0.0 — Stable Release — do not start unprompted
+- Stabilization + release cycle only; no new major feature. **Not started.**
 
 ---
 

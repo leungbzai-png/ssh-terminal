@@ -12,7 +12,7 @@ and a Vue 3 + TypeScript frontend. All user data lives next to the exe in `data/
 encrypted with AES-256-GCM. The app has zero external network calls beyond user-initiated SSH/SFTP.
 It is personal-developer-scale: no database, no server, no tests (yet). CI via GitHub Actions added in v0.3.0.
 
-**Current version: v0.7.0** (released 2026-07-03 — Part 3: Terminal UX (v0.6.0 scope) + SFTP UX (v0.7.0) shipped as one combined release under tag `v0.7.0`; there is **no separate v0.6.0 tag/Release**. v0.4.0 and v0.5.0 tags unchanged. **v0.8.0 not started.**)
+**Current version: v0.9.0** (released 2026-07-03 — combined **v0.8.0 Advanced SSH** + **v0.9.0 Hardening** shipped under one tag `v0.9.0`; there is **no separate v0.6.0 or v0.8.0 tag/Release**. v0.4.0 / v0.5.0 / v0.7.0 tags unchanged. **v1.0.0 not started.**) Advanced SSH lives in `internal/hosts/advanced.go` (non-secret config) and `internal/sshsess/{manager,tunnel,socks,diag}.go`; secret scrubbing in `internal/redact`. ProxyJump is single-level; a manual bastion is key-only (password bastions must reference a saved host).
 
 ---
 

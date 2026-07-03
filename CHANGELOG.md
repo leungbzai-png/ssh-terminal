@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-07-03
+
+Part 3 — combined release of the planned **v0.8.0 Advanced SSH** and **v0.9.0
+Hardening** scopes. Both were developed and QA'd together and ship in this
+single pre-1.0 release. There is **no separate v0.8.0 tag or GitHub Release**;
+the v0.8.0 Advanced SSH work is included here.
+
+### Added — Advanced SSH (v0.8.0 scope, released as part of 0.9.0)
+- **ProxyJump / bastion**: a saved host can connect through a single jump host, either by referencing another saved host (its encrypted credentials stay in secure storage and are used only at connect time) or by manual, **key-only** parameters. A manual bastion can never carry a password — password bastions must use the saved-host reference. The bastion connection is closed together with the session.
+- **Local port forwarding**: 0..N per host (name, localHost, localPort, remoteHost, remotePort, enabled). Local bind defaults to 127.0.0.1; ports are validated 1–65535; duplicate local binds are rejected.
+- **Remote port forwarding**: 0..N per host. Whether a non-loopback bind succeeds depends on the SSH server's `GatewayPorts` policy (surfaced in the UI); a server refusal is reported, not fatal.
+- **Dynamic SOCKS5 forwarding**: 0..N per host — a local SOCKS5 proxy (e.g. 127.0.0.1:1080) tunnelled over SSH (no-auth + CONNECT; IPv4/IPv6/domain).
+- **Auto reconnect**: per-host, capped (maxAttempts 0–10, delaySeconds 1–60). Triggers only on an unexpected drop after the session was established — never on a clean exit, a user close, or an authentication failure looping forever — and the user can cancel a pending reconnect.
+- **Connection diagnostics**: connection failures are classified into readable categories (DNS / TCP refused-or-timeout / SSH handshake / auth / key-or-passphrase / proxy jump / port forward).
+
+### Hardening (v0.9.0)
+- **Storage compatibility**: v0.7.0 `hosts.json` (no `advanced` field) loads unchanged; missing/unknown fields never crash; a corrupt `hosts.json` reports an error instead of panicking and is never silently overwritten with an empty list.
+- **Input validation**: Advanced SSH config is validated and defaulted in the backend (not only the UI) before it can persist or connect.
+- **Runtime cleanup**: a per-session tunnel set owns every listener and in-flight forwarded connection; closing a tab / disconnecting / app exit releases all bound ports and closes the bastion connection.
+- **Secret redaction**: a value-based redaction helper scrubs the actual host/bastion secrets from connection errors, and strips any embedded PEM private-key block from error/close-event payloads.
+
+### Security
+- No plaintext password, passphrase, or private key is stored. Quick Connect secrets are never persisted. The safe host export continues to exclude all secret material; the new Advanced SSH config it now carries is **non-secret** (a jump reference is only a host ID). ProxyJump and tunnel configuration store no secrets.
+
 ## [0.7.0] - 2026-07-03
 
 Part 3 — combined release of the planned **v0.6.0 Terminal UX** and **v0.7.0 SFTP UX** scopes.
