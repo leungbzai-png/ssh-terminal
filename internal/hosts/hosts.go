@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"sort"
 	"sync"
@@ -34,7 +35,11 @@ type Host struct {
 	ManagedKeyID string `json:"managedKeyId,omitempty"`
 	Group        string `json:"group,omitempty"`
 	Note         string `json:"note,omitempty"`
-	UpdatedAt    int64  `json:"updatedAt"`
+	// Advanced holds optional, non-secret Advanced SSH settings (ProxyJump,
+	// port forwards, auto-reconnect). A nil pointer means "no advanced config",
+	// so older hosts.json files without this field load unchanged.
+	Advanced  *AdvancedSSH `json:"advanced,omitempty"`
+	UpdatedAt int64        `json:"updatedAt"`
 }
 
 // storedHost mirrors Host but holds encrypted secrets.
@@ -67,7 +72,12 @@ func ensureLoaded() error {
 	}
 	var list []storedHost
 	if err := json.Unmarshal(data, &list); err != nil {
-		return err
+		// Corrupt file: surface the error and clear the cache flag so we do NOT
+		// treat the host list as "loaded but empty" (which a later save would
+		// then persist over the real file, losing data). The caller sees the
+		// error and can warn the user; nothing is overwritten.
+		cache = nil
+		return fmt.Errorf("主机配置文件损坏，无法解析 %s: %w", file, err)
 	}
 	for _, h := range list {
 		cache[h.ID] = h
@@ -159,6 +169,11 @@ func Upsert(h Host) (Host, error) {
 	}
 	if h.Name == "" {
 		h.Name = h.Address
+	}
+	// Validate + default the (non-secret) Advanced SSH config before persisting,
+	// so invalid tunnel/proxy settings never reach disk or a connection.
+	if err := h.Advanced.Normalize(); err != nil {
+		return Host{}, err
 	}
 	mu.Lock()
 	defer mu.Unlock()

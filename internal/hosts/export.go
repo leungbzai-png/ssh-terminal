@@ -33,6 +33,11 @@ type SafeHost struct {
 	ManagedKeyID string `json:"managedKeyId,omitempty"`
 	Group        string `json:"group,omitempty"`
 	Note         string `json:"note,omitempty"`
+	// Advanced is non-secret Advanced SSH config (ProxyJump/forwards/reconnect).
+	// It carries no password/passphrase/private-key material, so it is safe to
+	// include in a plain export. A savedHost jump reference is just an ID that
+	// may not resolve on the import target — that degrades gracefully.
+	Advanced *AdvancedSSH `json:"advanced,omitempty"`
 }
 
 // Export is the top-level safe-export document.
@@ -68,6 +73,7 @@ func BuildExport() (Export, error) {
 			ManagedKeyID: h.ManagedKeyID,
 			Group:        h.Group,
 			Note:         h.Note,
+			Advanced:     h.Advanced,
 		})
 	}
 	return out, nil
