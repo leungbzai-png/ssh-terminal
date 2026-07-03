@@ -34,6 +34,12 @@ type Session struct {
 	session *ssh.Session
 	stdin   io.WriteCloser
 
+	// jumpClient is the bastion connection when this session was opened through
+	// a ProxyJump; it is closed together with the session. nil otherwise.
+	jumpClient *ssh.Client
+	// tunnels owns all port-forward listeners and in-flight forwarded conns.
+	tunnels *tunnelSet
+
 	onData  DataHandler
 	onClose CloseHandler
 
@@ -51,14 +57,16 @@ type Manager struct {
 	onData   DataHandler
 	onClose  CloseHandler
 	prompt   HostKeyPrompt
+	onTunnel TunnelHandler
 }
 
-func NewManager(onData DataHandler, onClose CloseHandler, prompt HostKeyPrompt) *Manager {
+func NewManager(onData DataHandler, onClose CloseHandler, prompt HostKeyPrompt, onTunnel TunnelHandler) *Manager {
 	return &Manager{
 		sessions: map[string]*Session{},
 		onData:   onData,
 		onClose:  onClose,
 		prompt:   prompt,
+		onTunnel: onTunnel,
 	}
 }
 
@@ -157,19 +165,20 @@ func buildAuth(h hosts.Host) ([]ssh.AuthMethod, error) {
 	return methods, nil
 }
 
-// Open establishes a new SSH session and begins streaming.
-// timeoutSec is the TCP+SSH handshake timeout; 0 or negative falls back to 15 s.
-// keepAliveSec, when > 0, enables periodic keepalive@openssh.com requests at
-// that interval; 0 or negative disables keepalive.
-func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int, timeoutSec, keepAliveSec int) error {
-	auth, err := buildAuth(h)
-	if err != nil {
-		return err
-	}
-	cb, err := m.hostKeyCallback()
-	if err != nil {
-		return err
-	}
+// OpenOptions carries everything needed to establish a session, including an
+// optional resolved jump host (with its secrets) for ProxyJump. Port-forward
+// definitions come from Host.Advanced.
+type OpenOptions struct {
+	SessionID    string
+	Host         hosts.Host
+	JumpHost     *hosts.Host // resolved bastion (with secrets), or nil
+	Cols, Rows   int
+	TimeoutSec   int
+	KeepAliveSec int
+}
+
+// hostAddr returns the dial address "host:port" for h, defaulting port to 22.
+func hostAddr(h hosts.Host) string {
 	port := h.Port
 	if port == 0 {
 		port = 22
@@ -178,24 +187,101 @@ func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int, timeoutSe
 	if !strings.Contains(addr, ":") {
 		addr = fmt.Sprintf("%s:%d", addr, port)
 	}
-	if timeoutSec <= 0 {
-		timeoutSec = 15
+	return addr
+}
+
+// clientConfig builds an ssh.ClientConfig for h using the shared host-key
+// callback and handshake timeout.
+func clientConfig(h hosts.Host, cb ssh.HostKeyCallback, timeout time.Duration) (*ssh.ClientConfig, error) {
+	auth, err := buildAuth(h)
+	if err != nil {
+		return nil, err
 	}
-	cfg := &ssh.ClientConfig{
+	return &ssh.ClientConfig{
 		User:            h.User,
 		Auth:            auth,
 		HostKeyCallback: cb,
-		Timeout:         time.Duration(timeoutSec) * time.Second,
+		Timeout:         timeout,
 		ClientVersion:   "SSH-2.0-ssh-terminal",
-	}
-	client, err := ssh.Dial("tcp", addr, cfg)
+	}, nil
+}
+
+// dial connects to h, optionally through a single jump host. On success it
+// returns the target client and (when a bastion was used) the jump client,
+// which the caller must close alongside the target.
+func (m *Manager) dial(h hosts.Host, jump *hosts.Host, timeoutSec int) (*ssh.Client, *ssh.Client, error) {
+	cb, err := m.hostKeyCallback()
 	if err != nil {
-		return fmt.Errorf("dial: %w", err)
+		return nil, nil, err
+	}
+	if timeoutSec <= 0 {
+		timeoutSec = 15
+	}
+	timeout := time.Duration(timeoutSec) * time.Second
+
+	targetCfg, err := clientConfig(h, cb, timeout)
+	if err != nil {
+		return nil, nil, err
+	}
+	targetAddr := hostAddr(h)
+
+	if jump == nil {
+		client, derr := ssh.Dial("tcp", targetAddr, targetCfg)
+		if derr != nil {
+			return nil, nil, fmt.Errorf("dial: %w", derr)
+		}
+		return client, nil, nil
+	}
+
+	// ProxyJump: dial the bastion, then tunnel to the target through it.
+	jumpCfg, err := clientConfig(*jump, cb, timeout)
+	if err != nil {
+		return nil, nil, fmt.Errorf("proxy jump: bastion auth: %w", err)
+	}
+	jumpClient, err := ssh.Dial("tcp", hostAddr(*jump), jumpCfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("proxy jump: dial bastion: %w", err)
+	}
+	conn, err := jumpClient.Dial("tcp", targetAddr)
+	if err != nil {
+		_ = jumpClient.Close()
+		return nil, nil, fmt.Errorf("proxy jump: reach target via bastion: %w", err)
+	}
+	ncc, chans, reqs, err := ssh.NewClientConn(conn, targetAddr, targetCfg)
+	if err != nil {
+		_ = conn.Close()
+		_ = jumpClient.Close()
+		return nil, nil, fmt.Errorf("proxy jump: target handshake: %w", err)
+	}
+	return ssh.NewClient(ncc, chans, reqs), jumpClient, nil
+}
+
+// Open establishes a new SSH session and begins streaming.
+// TimeoutSec is the TCP+SSH handshake timeout; 0 or negative falls back to 15 s.
+// KeepAliveSec, when > 0, enables periodic keepalive@openssh.com requests at
+// that interval; 0 or negative disables keepalive.
+func (m *Manager) Open(opt OpenOptions) error {
+	h := opt.Host
+	cols, rows := opt.Cols, opt.Rows
+	client, jumpClient, err := m.dial(h, opt.JumpHost, opt.TimeoutSec)
+	if err != nil {
+		return err
 	}
 	sess, err := client.NewSession()
 	if err != nil {
 		_ = client.Close()
+		if jumpClient != nil {
+			_ = jumpClient.Close()
+		}
 		return fmt.Errorf("session: %w", err)
+	}
+	// closeClients tears down the target and (if any) bastion connection on an
+	// early setup failure.
+	closeClients := func() {
+		_ = client.Close()
+		if jumpClient != nil {
+			_ = jumpClient.Close()
+		}
 	}
 	modes := ssh.TerminalModes{
 		ssh.ECHO:          1,
@@ -210,44 +296,46 @@ func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int, timeoutSe
 	}
 	if err := sess.RequestPty("xterm-256color", rows, cols, modes); err != nil {
 		_ = sess.Close()
-		_ = client.Close()
+		closeClients()
 		return fmt.Errorf("pty: %w", err)
 	}
 	stdin, err := sess.StdinPipe()
 	if err != nil {
 		_ = sess.Close()
-		_ = client.Close()
+		closeClients()
 		return err
 	}
 	stdout, err := sess.StdoutPipe()
 	if err != nil {
 		_ = sess.Close()
-		_ = client.Close()
+		closeClients()
 		return err
 	}
 	stderr, err := sess.StderrPipe()
 	if err != nil {
 		_ = sess.Close()
-		_ = client.Close()
+		closeClients()
 		return err
 	}
 	if err := sess.Shell(); err != nil {
 		_ = sess.Close()
-		_ = client.Close()
+		closeClients()
 		return fmt.Errorf("shell: %w", err)
 	}
 	s := &Session{
-		ID:      sessionID,
-		HostID:  h.ID,
-		client:  client,
-		session: sess,
-		stdin:   stdin,
-		onData:  m.onData,
-		onClose: m.onClose,
-		done:    make(chan struct{}),
+		ID:         opt.SessionID,
+		HostID:     h.ID,
+		client:     client,
+		session:    sess,
+		stdin:      stdin,
+		jumpClient: jumpClient,
+		tunnels:    newTunnelSet(),
+		onData:     m.onData,
+		onClose:    m.onClose,
+		done:       make(chan struct{}),
 	}
 	m.mu.Lock()
-	m.sessions[sessionID] = s
+	m.sessions[opt.SessionID] = s
 	m.mu.Unlock()
 
 	go s.pump(stdout)
@@ -260,9 +348,12 @@ func (m *Manager) Open(sessionID string, h hosts.Host, cols, rows int, timeoutSe
 		}
 		s.closeWithReason(reason)
 	}()
-	if keepAliveSec > 0 {
-		s.startKeepAlive(time.Duration(keepAliveSec) * time.Second)
+	if opt.KeepAliveSec > 0 {
+		s.startKeepAlive(time.Duration(opt.KeepAliveSec) * time.Second)
 	}
+	// Start any enabled port-forward tunnels. Bind failures are reported via the
+	// tunnel handler and never abort the session.
+	s.startForwards(h.Advanced, m.onTunnel)
 	return nil
 }
 
@@ -381,9 +472,18 @@ func (s *Session) closeWithReason(reason string) {
 		close(s.done)
 	}
 	s.mu.Unlock()
+	// Tear down tunnels first (stops listeners + closes in-flight forwarded
+	// connections) so every bound port is released, then the shell/client, then
+	// the bastion connection.
+	if s.tunnels != nil {
+		s.tunnels.closeAll()
+	}
 	_ = s.stdin.Close()
 	_ = s.session.Close()
 	_ = s.client.Close()
+	if s.jumpClient != nil {
+		_ = s.jumpClient.Close()
+	}
 	if s.onClose != nil {
 		s.onClose(s.ID, reason)
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/leungbzai-png/ssh-terminal/internal/hosts"
 	"github.com/leungbzai-png/ssh-terminal/internal/keymgr"
 	"github.com/leungbzai-png/ssh-terminal/internal/portable"
+	"github.com/leungbzai-png/ssh-terminal/internal/redact"
 	"github.com/leungbzai-png/ssh-terminal/internal/session"
 	"github.com/leungbzai-png/ssh-terminal/internal/sftpx"
 	"github.com/leungbzai-png/ssh-terminal/internal/sshconfig"
@@ -54,7 +55,9 @@ func (a *App) startup(ctx context.Context) {
 			runtime.EventsEmit(a.ctx, "ssh:data:"+id, base64.StdEncoding.EncodeToString(data))
 		},
 		func(id string, reason string) {
-			runtime.EventsEmit(a.ctx, "ssh:close:"+id, reason)
+			// Defence in depth: a close reason should never carry secret material,
+			// but scrub any embedded PEM block before it reaches the frontend.
+			runtime.EventsEmit(a.ctx, "ssh:close:"+id, redact.String(reason))
 		},
 		func(hostname, fp string) bool {
 			ch := make(chan bool, 1)
@@ -70,6 +73,11 @@ func (a *App) startup(ctx context.Context) {
 			delete(a.pendingPrompts, fp)
 			a.pendingMu.Unlock()
 			return ans
+		},
+		// Tunnel status: forwards report bind success/failure here so the UI can
+		// show a per-tunnel indicator. TunnelStatus carries no secret material.
+		func(sessionID string, st sshsess.TunnelStatus) {
+			runtime.EventsEmit(a.ctx, "ssh:tunnel:"+sessionID, st)
 		},
 	)
 }
@@ -119,7 +127,7 @@ func (a *App) onFileDrop(x, y int, paths []string) {
 func (a *App) AppInfo() map[string]string {
 	return map[string]string{
 		"name":    "SSH Terminal",
-		"version": "0.7.0",
+		"version": "0.9.0",
 		"dataDir": portable.DataDir(),
 		"baseDir": portable.BaseDir(),
 	}
@@ -380,6 +388,7 @@ func (a *App) ImportHosts(entries []hosts.SafeHost, overwrite bool) (HostsImport
 			ManagedKeyID: e.ManagedKeyID,
 			Group:        e.Group,
 			Note:         e.Note,
+			Advanced:     e.Advanced,
 		}
 		if dup {
 			if !overwrite {
@@ -418,8 +427,79 @@ func (a *App) OpenSession(sessionID, hostID string, cols, rows int) error {
 	if err != nil {
 		return err
 	}
+	jump, err := a.resolveJumpHost(h)
+	if err != nil {
+		return err
+	}
 	s := config.Load()
-	return a.ssh.Open(sessionID, h, cols, rows, s.ConnectTimeoutSec, keepAliveSecFrom(s))
+	err = a.ssh.Open(sshsess.OpenOptions{
+		SessionID:    sessionID,
+		Host:         h,
+		JumpHost:     jump,
+		Cols:         cols,
+		Rows:         rows,
+		TimeoutSec:   s.ConnectTimeoutSec,
+		KeepAliveSec: keepAliveSecFrom(s),
+	})
+	if err != nil {
+		return a.connectError(err, &h, jump)
+	}
+	return nil
+}
+
+// resolveJumpHost turns a host's ProxyJump config into a concrete jump host
+// (with secrets, when it references a saved host). Manual mode is key-only by
+// design — a manual bastion can never carry a password/passphrase. Returns
+// (nil, nil) when the host has no ProxyJump configured.
+func (a *App) resolveJumpHost(h hosts.Host) (*hosts.Host, error) {
+	if h.Advanced == nil || h.Advanced.ProxyJump == nil {
+		return nil, nil
+	}
+	pj := h.Advanced.ProxyJump
+	switch pj.Mode {
+	case hosts.ProxyJumpSavedHost:
+		jh, err := hosts.Get(pj.JumpHostID) // decrypts the bastion's stored secrets
+		if err != nil {
+			return nil, fmt.Errorf("跳板机主机缺失或无法读取（proxy jump）")
+		}
+		return &jh, nil
+	case hosts.ProxyJumpManual:
+		if pj.KeyPath == "" {
+			return nil, fmt.Errorf("手动跳板机需要密钥文件（proxy jump，不支持明文密码）")
+		}
+		jh := hosts.Host{
+			Address:  pj.Address,
+			Port:     pj.Port,
+			User:     pj.User,
+			AuthType: "key",
+			KeyPath:  pj.KeyPath,
+		}
+		return &jh, nil
+	default:
+		return nil, fmt.Errorf("未知跳板机模式（proxy jump）: %q", pj.Mode)
+	}
+}
+
+// connectError builds a user-facing connection error: it classifies the failure
+// into a readable category and redacts any host/bastion secret that might have
+// surfaced in the underlying error text. Secrets are scrubbed by VALUE using
+// the actual credentials in scope here.
+func (a *App) connectError(err error, h *hosts.Host, jump *hosts.Host) error {
+	if err == nil {
+		return nil
+	}
+	var secrets []string
+	if h != nil {
+		secrets = append(secrets, h.Password, h.Passphrase)
+	}
+	if jump != nil {
+		secrets = append(secrets, jump.Password, jump.Passphrase)
+	}
+	msg := redact.String(err.Error(), secrets...)
+	if diag := sshsess.DiagnoseError(err); diag != "" {
+		return fmt.Errorf("%s：%s", diag, msg)
+	}
+	return fmt.Errorf("%s", msg)
 }
 
 // keepAliveSecFrom returns the effective keepalive interval in seconds for the
@@ -467,7 +547,18 @@ func (a *App) SshOpenQuick(sessionID string, p QuickConnectParams, cols, rows in
 		Passphrase: p.Passphrase,
 	}
 	s := config.Load()
-	return a.ssh.Open(sessionID, h, cols, rows, s.ConnectTimeoutSec, keepAliveSecFrom(s))
+	err := a.ssh.Open(sshsess.OpenOptions{
+		SessionID:    sessionID,
+		Host:         h,
+		Cols:         cols,
+		Rows:         rows,
+		TimeoutSec:   s.ConnectTimeoutSec,
+		KeepAliveSec: keepAliveSecFrom(s),
+	})
+	if err != nil {
+		return a.connectError(err, &h, nil)
+	}
+	return nil
 }
 
 func (a *App) WriteSession(sessionID string, dataB64 string) error {
