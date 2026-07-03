@@ -12,7 +12,7 @@ and a Vue 3 + TypeScript frontend. All user data lives next to the exe in `data/
 encrypted with AES-256-GCM. The app has zero external network calls beyond user-initiated SSH/SFTP.
 It is personal-developer-scale: no database, no server, no tests (yet). CI via GitHub Actions added in v0.3.0.
 
-**Current version: v0.7.0** (in development — Part 3: Terminal UX (v0.6.0) + SFTP UX (v0.7.0) bundled; not yet tagged)
+**Current version: v0.7.0** (released 2026-07-03 — Part 3: Terminal UX (v0.6.0 scope) + SFTP UX (v0.7.0) shipped as one combined release under tag `v0.7.0`; there is **no separate v0.6.0 tag/Release**. v0.4.0 and v0.5.0 tags unchanged. **v0.8.0 not started.**)
 
 ---
 

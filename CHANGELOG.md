@@ -2,32 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.7.0] - Unreleased (pending QA)
+## [0.7.0] - 2026-07-03
 
-Part 3 — SFTP UX enhancements. Bundled with v0.6.0 in one QA build. **Not tagged or released.**
+Part 3 — combined release of the planned **v0.6.0 Terminal UX** and **v0.7.0 SFTP UX** scopes.
+Both scopes were developed and QA'd together and ship in this single release. There is **no
+separate v0.6.0 tag or GitHub Release**; the v0.6.0 Terminal UX work is included here.
 
-### Added
+### Added — SFTP UX
 - **Upload/download progress**: the SFTP panel shows a footer progress bar for its own uploads and downloads (filename, direction, percentage). Failures surface an error and never crash the UI. Progress uses a dedicated `sftp:xfer:*` event namespace, kept separate from the window drag-upload flow.
 - **Drag-upload polish**: the drop overlay now shows an accept state with the target remote directory, and a distinct reject state when there is no connected session (files only).
 - **Remote path bookmarks**: per-host SFTP remote-path bookmarks (add current path, jump, delete), stored in `data/bookmarks.json`. Quick Connect tabs (no saved host) show a not-supported hint instead of failing.
 - **Read-only text preview**: double-click a text file (or right-click → 预览) to preview it read-only. Files over 512 KiB report "too large" (download instead); non-UTF-8/binary files are refused. The remote file is never modified.
 
-### Security
+### Security — SFTP UX
 - Bookmarks and restored-tab state contain only non-secret fields (name, path, host id/name). They are stored in their own files and are **not** part of the safe host export.
 - Text preview is read-only and size-capped; it never writes to the remote file.
 
-## [0.6.0] - Unreleased (pending QA)
-
-Part 3 — Terminal UX. Bundled with v0.7.0 in one QA build. **Not tagged or released.**
-
-### Added
+### Added — Terminal UX (v0.6.0 scope, released as part of 0.7.0)
 - **Terminal search feedback**: the in-terminal search (Ctrl+F) now shows a live match count (index/total) and a 无匹配 indicator when nothing matches. Search remains per-tab and does not block input.
 - **Font family presets**: the terminal font-family setting gains a datalist of common monospace fonts; a missing font falls back to the default without crashing.
 - **Font size controls**: font size range widened to 8–32 (clamped). New shortcuts Ctrl+= / Ctrl+- adjust size and Ctrl+0 resets it; the setting persists.
 - **Tab restore**: on launch the app restores the previous session's *saved-host* tabs as idle ("Ready to connect") without auto-connecting. Only a non-secret host reference (id + display name) is persisted, to `data/session.json`. Quick Connect tabs are never persisted; removed hosts are skipped on restore.
 - **Keyboard shortcut help**: a new help dialog (sidebar button or F1) lists the real shortcuts and mouse actions.
 
-### Security
+### Security — Terminal UX
 - Tab restore stores only a host reference — never a password, passphrase, private key, Quick Connect secret, terminal buffer, or SFTP state.
 
 ## [0.5.0] - 2026-07-02

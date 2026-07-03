@@ -1,7 +1,7 @@
 # Session Status — SSH Terminal
 
-**Last updated:** 2026-07-02  
-**Updated by:** Claude Opus 4.8 (v0.6.0 + v0.7.0 — Terminal & SFTP UX, bundled QA build)
+**Last updated:** 2026-07-03  
+**Updated by:** Claude Opus 4.8 (v0.7.0 release — Terminal & SFTP UX, combined release)
 
 ---
 
@@ -9,9 +9,9 @@
 
 | Field | Value |
 |-------|-------|
-| Version | **v0.7.0 (in development — v0.6.0+v0.7.0 bundled, NOT tagged/released)** |
-| Latest released version | **v0.5.0** (tag `v0.5.0` → `6343795`, unchanged) |
-| Git tag | `v0.5.0`, `v0.4.0` unchanged; no `v0.6.0`/`v0.7.0` tag created |
+| Version | **v0.7.0 (released 2026-07-03 — combined v0.6.0 Terminal UX + v0.7.0 SFTP UX)** |
+| Latest released version | **v0.7.0** (tag `v0.7.0`) |
+| Git tag | `v0.4.0`, `v0.5.0` unchanged; `v0.7.0` created; **no separate `v0.6.0` tag** |
 | Branch | `main` |
 | Previous release commit | `6343795` (v0.5.0) |
 
@@ -32,7 +32,8 @@
 
 | Release | Date | Status | Artifacts |
 |---------|------|--------|-----------|
-| v0.5.0 | 2026-07-02 | ✅ Published (latest) | `ssh-terminal-v0.5.0-windows-amd64.zip` (4,754,440 bytes ≈ 4.53 MB) |
+| v0.7.0 | 2026-07-03 | ✅ Published (latest) — combined v0.6.0 Terminal UX + v0.7.0 SFTP UX | `ssh-terminal-v0.7.0-windows-portable.zip` |
+| v0.5.0 | 2026-07-02 | ✅ Published | `ssh-terminal-v0.5.0-windows-amd64.zip` (4,754,440 bytes ≈ 4.53 MB) |
 | v0.4.0 | 2026-07-02 | ✅ Published | `ssh-terminal-v0.4.0-windows-amd64.zip` (4,745,983 bytes ≈ 4.53 MB) |
 | v0.3.0 | 2026-06-10 | ✅ Published | `ssh-terminal-v0.3.0-windows-amd64.zip` |
 | v0.2.0 | 2026-06-10 | ✅ Published | `ssh-terminal-v0.2.0-windows-amd64.zip` (4.51 MB) |
@@ -126,7 +127,7 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 - **QA build**: `qa-local/ssh-terminal-v0.5.0-qa/ssh-terminal.exe` + empty `data/`. Checklist: `qa-local/MANUAL_QA_v0.5.0.md` (A–I) — **passed**. qa-local/ is git-ignored.
 - **Released**: annotated tag `v0.5.0` pushed; GitHub Release published. `v0.4.0` tag unchanged.
 
-### v0.6.0 + v0.7.0 — Terminal & SFTP UX (in development 2026-07-02, bundled)
+### v0.6.0 + v0.7.0 — Terminal & SFTP UX (released 2026-07-03 as v0.7.0, bundled)
 - **Terminal search**: `Terminal.vue` search gains live match count + 无匹配 (SearchAddon.onDidChangeResults; live incremental).
 - **Font controls**: `settings` store `bumpFontSize`/`resetFontSize` (clamp 8–32); Ctrl +/-/0 in `Terminal.vue`; `SettingsDialog` font datalist + range 8–32.
 - **Tab restore**: new `internal/session` (`data/session.json`, non-secret hostId+hostName); `GetOpenTabs`/`SaveOpenTabs`; `sessions` store `idle` status + `openSavedTabIdle` + debounced persist; `Terminal.vue` idle overlay; `App.vue restoreTabs` skips missing hosts; Quick tabs never persisted.
@@ -139,7 +140,7 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 - **Version bumped to 0.7.0**: `app.go`, `wails.json`, `frontend/package.json` + lock.
 - **Automated verification**: `go build/vet/test`, `go mod verify`, `npm run build`, `build-windows.bat` all pass.
 - **QA build**: `qa-local/ssh-terminal-v0.6.0-v0.7.0-qa/`; checklist `docs/QA_v0.6.0_v0.7.0.md`.
-- **No tag, no push, no GitHub Release.** Awaiting manual QA + approval.
+- **Released** as combined **v0.7.0** on 2026-07-03: annotated tag `v0.7.0` on `main`, GitHub Release published (latest), artifact `ssh-terminal-v0.7.0-windows-portable.zip` (exe + README + LICENSE only). **No separate v0.6.0 tag/Release.** `v0.4.0` / `v0.5.0` tags unchanged.
 
 ## Known Issues (Open)
 
@@ -170,10 +171,11 @@ Release zip location (local backup): `E:\Backup\Releases\ssh-terminal-v0.2.0-win
 
 Manual QA A–I passed; tag `v0.5.0` + GitHub Release published.
 
-### Next: v0.6.0 — Part 3 (Terminal UX) — do not start unprompted
+### v0.6.0 + v0.7.0 — Part 3 (Terminal UX + SFTP UX) — ✅ released 2026-07-03 as v0.7.0
+- Combined release under a single `v0.7.0` tag; no separate v0.6.0 tag/Release.
 
-### Later (Part 3: v0.6.0 → v1.0.0)
-- Terminal UX (v0.6.0), SFTP UX (v0.7.0), Advanced SSH incl. ProxyJump/forwarding/SOCKS (v0.8.0), Hardening + tests (v0.9.0), stable tag (v1.0.0)
+### Next: v0.8.0 — Advanced SSH — do not start unprompted
+- ProxyJump/bastion, local/remote port forwarding, dynamic SOCKS proxy, auto reconnect (planning only; not started)
 
 ---
 
