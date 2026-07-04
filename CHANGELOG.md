@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - Unreleased (prepared; pending manual GUI QA + release)
+
+> **Status:** version prepared for v1.1.0. The latest **formal release is still
+> v1.0.0** — no `v1.1.0` tag or GitHub Release exists yet. The manual SFTP
+> two-pane GUI QA (`docs/SFTP_TWO_PANE_QA.md`) has **not** been executed by a
+> human; the backend paths are covered by automated unit + build-tagged
+> integration tests.
+
+### Added — SFTP Two-Pane Foundation
+- **Local/remote two-pane file browser.** The SFTP panel now shows a **local**
+  pane beside the existing **remote** pane. The local pane browses the local
+  filesystem (home, folders, drive roots on Windows) read-only, with
+  up-navigation and refresh. Layout is responsive: side-by-side when wide,
+  stacked when narrow.
+- **Local → remote upload.** Select a local file or folder and upload it into
+  the current remote directory (folders upload recursively via the existing
+  batch upload).
+- **Remote → local download (files and folders).** Select a remote file or
+  folder and download it into the current local directory. Directory downloads
+  are **recursive** (new `sftpx.DownloadPaths`).
+- **Overwrite confirmation.** Before a two-pane transfer, the destination is
+  checked (`SftpExists` / `LocalExists`); if the target already exists, a
+  confirmation dialog offers overwrite or cancel. (Top-level name conflicts
+  only; directory overwrite merges — deep per-file conflict resolution is out of
+  scope.)
+- New backend browse API (`internal/localfs`: List/Home/Roots/Parent/Exists) and
+  its Wails bridge (`LocalList`/`LocalHome`/`LocalRoots`/`LocalParent`/
+  `LocalExists`); `SftpDownloadPathsTracked` / `SftpExists` bridge methods.
+
+### Preserved
+- Existing remote actions are unchanged: remote upload, per-file download,
+  mkdir, rename, delete-with-confirmation, remote-path bookmarks, and read-only
+  text preview. The window **drag-drop upload** (`app:filedrop`) and its progress
+  namespace are untouched.
+
+### Not in scope for v1.1.0
+- No transfer queue, no multi-threaded transfer, no resumable transfer, no
+  background transfer manager, no multi-select, no advanced/persisted conflict
+  resolution, and no file editor. These remain out of scope.
+
+### Security
+- The local pane is read-only browse + user-initiated transfers only. Local cwd,
+  local listings, and selected local paths are held in memory and **never
+  persisted** (no `session.json` / `bookmarks.json` / secret-storage changes).
+  The safe host export rules and `data/secret.key` handling are unchanged.
+
 ## [1.0.0] - 2026-07-04
 
 **Stable Release.** SSH Terminal 1.0.0 is the first stable release. It

@@ -1,7 +1,7 @@
 # Session Status — SSH Terminal
 
-**Last updated:** 2026-07-04  
-**Updated by:** Claude Opus 4.8 (v1.0.0 Stable Release)
+**Last updated:** 2026-07-05  
+**Updated by:** Claude Opus 4.8 (v1.1.0 SFTP two-pane — release prep, unreleased)
 
 ---
 
@@ -9,11 +9,35 @@
 
 | Field | Value |
 |-------|-------|
-| Version | **v1.0.0 (Stable Release, 2026-07-04)** — consolidates 0.4–0.9 scope; no new feature scope |
-| Latest released version | **v1.0.0** (tag `v1.0.0`) |
-| Git tag | `v0.4.0`, `v0.5.0`, `v0.7.0`, `v0.9.0` unchanged; `v1.0.0` created; **no separate `v0.6.0`/`v0.8.0` tag** |
+| Dev version (metadata) | **1.1.0 (in preparation; NOT released)** — SFTP Two-Pane Foundation |
+| **Latest formal release** | **v1.0.0** (tag `v1.0.0`, GitHub Latest) — unchanged |
+| Git tag | `v0.4.0`–`v1.0.0` unchanged; **no `v1.1.0` tag exists** |
 | Branch | `main` |
 | Previous release commit | `4383b86` (v0.9.0) |
+
+---
+
+## v1.1.0 — SFTP Two-Pane Foundation (release prep, 2026-07-05, UNRELEASED)
+
+- **Scope (all merged to `main` across commits 1–4):** local filesystem browse
+  API (`internal/localfs`), recursive remote→local `sftpx.DownloadPaths`, the
+  local/remote two-pane SFTP UI, and two-pane upload/download wiring with
+  overwrite confirmation (`SftpExists`/`LocalExists`).
+- **This commit (5):** version bump 1.0.0 → 1.1.0 (app.go, wails.json,
+  frontend/package.json + package-lock ×2), CHANGELOG `[1.1.0] - Unreleased`
+  entry, and doc updates. No product-behavior change beyond the QA/version prep.
+- **Automated release gate: green** — `go test ./...`, `go vet`, `go mod verify`,
+  `go test -tags=integration ./...` (+ package-level), `npm run build`,
+  `build-windows.bat`. localfs (List/Home/Roots/Parent/Exists) and the SFTP
+  integration test (DownloadPaths + Exists) cover the backend paths.
+- **⚠ Manual SFTP two-pane GUI QA: NOT executed** (`docs/SFTP_TWO_PANE_QA.md`,
+  all cases still ☐/NOT RUN). The two-pane UI, drag-drop regression, overwrite
+  dialogs, and the `LocalParent` Wails multi-return were **not** human-tested in
+  this session. This is the same honest posture v1.0.0 shipped with for GUI
+  auto-reconnect.
+- **NOT released:** no `v1.1.0` tag, no GitHub Release, no artifact uploaded;
+  v1.0.0 tag/release untouched. Tagging/release awaits human GUI QA and explicit
+  approval.
 
 ---
 

@@ -2,7 +2,17 @@
 
 **Status of this document:** *authored, not yet human-executed.* No case below is
 marked PASS. Fill in Pass/Fail only after a human runs each case on a real
-Windows build. This tracks the SFTP two-pane feature (v1.1.0), built up across
+Windows build.
+
+> **Execution status as of v1.1.0 release prep (2026-07-05): NOT RUN.** Every
+> case below is still ☐ / NOT RUN — the manual GUI clickthrough was **not**
+> performed in the automated release-prep session. The v1.1.0 backend paths are
+> covered by automated unit + build-tagged integration tests
+> (`internal/localfs` List/Home/Roots/Parent/Exists; `sftpx.DownloadPaths` +
+> `Exists` in the integration suite), but the two-pane **GUI** behavior — pane
+> rendering, drag-drop regression, overwrite dialogs, progress, and the
+> `LocalParent` Wails multi-return — remains human-unverified. Do not treat
+> v1.1.0 as GUI-QA-passed until these boxes are filled by a person. This tracks the SFTP two-pane feature (v1.1.0), built up across
 commits: local browse API (commit 1), recursive remote→local download backend
 (commit 2), **two-pane UI foundation (commit 3, this checklist's focus)**, and
 transfer-action wiring (commit 4, later).

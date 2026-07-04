@@ -206,11 +206,26 @@ v0.5.0 / v0.7.0 / v0.9.0 tags unchanged; no separate v0.8.0 tag/release.
 signal is covered by the integration gate; the GUI UX was not separately
 human-tested — see `docs/QA_v0.8.0_v0.9.0.md` section E).
 
-### Future 1.x — maintenance only (NOT started)
+### v1.1.0 — SFTP Two-Pane Foundation (PREPARED; pending manual GUI QA + release)
+- [x] Local filesystem browse API (`internal/localfs`) + unit tests
+- [x] Recursive remote→local download (`sftpx.DownloadPaths`) + integration test
+- [x] Local/remote two-pane SFTP UI (responsive side-by-side / stacked)
+- [x] Two-pane upload/download wiring + overwrite confirmation (`SftpExists`/`LocalExists`)
+- [x] Version bumped to 1.1.0; docs updated; automated release gate green
+- [ ] **Manual SFTP two-pane GUI QA** (`docs/SFTP_TWO_PANE_QA.md`) — NOT yet human-executed
+- [ ] Tag `v1.1.0` + GitHub Release — **not created**
+
+**Status:** code-complete and version-prepared, but **not released**. The latest
+formal release remains **v1.0.0**. Explicitly out of scope for v1.1.0: transfer
+queue, multi-threaded/resumable transfer, background transfer manager,
+multi-select, persisted conflict strategy, and any file editor.
+
+### Future 1.x — maintenance / scoped enhancements
 - Bug fixes, small UX improvements, and carefully scoped enhancements only.
-- No active v1.1.0 work has been started. Do not open a new feature track
-  without explicit direction. macOS build support (item 18) remains post-1.0
-  and unscheduled.
+- macOS build support (item 18) remains post-1.0 and unscheduled.
+- **Open item carried forward:** full manual GUI QA of auto-reconnect (v1.0.0)
+  and of the SFTP two-pane UI (v1.1.0) — both backends are covered by automated
+  tests; the GUI flows have not been separately human-tested.
 
 **Estimated timeline:** paced by stability, not calendar.
 
