@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2026-07-04
+
+**Stable Release.** SSH Terminal 1.0.0 is the first stable release. It
+consolidates the completed milestone work from the 0.x series and focuses on
+stability, security, compatibility, and release readiness — **it does not add a
+new feature scope**.
+
+### Included milestone scope (unchanged behavior)
+- **v0.4.0 Connection UX** — SSH KeepAlive, Quick Connect (secrets never
+  persisted), import of `~/.ssh/config`.
+- **v0.5.0 Host Management + Secure Storage** — host groups & search, safe host
+  export/import (no secrets), encrypted private-key import (`.key.enc`).
+- **v0.7.0 Terminal UX + SFTP UX** — terminal search/font controls, tab restore,
+  shortcut help, SFTP transfer progress, remote bookmarks, read-only text
+  preview.
+- **v0.9.0 Advanced SSH + Hardening** — ProxyJump/bastion, local/remote/dynamic
+  SOCKS5 forwarding, auto-reconnect, connection diagnostics, secret redaction,
+  storage-compat hardening.
+
+### Stabilization for 1.0.0
+- **Version and documentation polish** — all version strings bumped to 1.0.0;
+  README/CHANGELOG/roadmap/handoff updated.
+- **Automated release gate** — `go test ./...`, `go vet ./...`, `go mod verify`,
+  frontend build, and Windows build all pass.
+- **Build-tagged backend-live Advanced SSH integration tests** (added after
+  v0.9.0, `//go:build integration`) drive the real session manager against
+  disposable in-process SSH servers on 127.0.0.1: ProxyJump/bastion,
+  local/remote/dynamic-SOCKS forwarding, occupied-port handling, connection
+  diagnostics, runtime cleanup, and the auto-reconnect backend close signal.
+  Excluded from the normal test run; part of the v1.0.0 readiness gate.
+- **Windows portable artifact verification** — the release zip contains only
+  `ssh-terminal.exe`, `README.md`, and `LICENSE`.
+- **Security / secret-storage regression checks** — no plaintext password,
+  passphrase, or private key on disk; Quick Connect secrets not persisted; safe
+  export excludes secrets; the release zip excludes `data/`, secrets, logs, and
+  test artifacts.
+
+### Security model (unchanged)
+- Passwords and key passphrases are AES-256-GCM encrypted at rest with a
+  locally-generated key; no plaintext secrets on disk; strict `known_hosts`
+  verification; no telemetry, no auto-update, no network calls beyond
+  user-initiated SSH/SFTP.
+
+### Known limitation
+- The **GUI auto-reconnect** cap/cancel/discriminator behavior (Vue-side) was
+  **not separately human-tested** for this release. Its **backend close signal**
+  is covered by the integration tests, and the frontend logic was reviewed with
+  no new issue found, but full manual GUI QA of the reconnect UX remains
+  outstanding. See `docs/QA_v0.8.0_v0.9.0.md` (section E).
+
+### No product code changes
+- 1.0.0 is documentation, versioning, and release packaging on top of the
+  v0.9.0 code plus the post-v0.9.0 integration-test infrastructure. No feature
+  or behavior of the shipped application changed.
+
 ## [0.9.0] - 2026-07-03
 
 Part 3 — combined release of the planned **v0.8.0 Advanced SSH** and **v0.9.0

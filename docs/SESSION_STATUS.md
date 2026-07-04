@@ -1,7 +1,7 @@
 # Session Status — SSH Terminal
 
-**Last updated:** 2026-07-03  
-**Updated by:** Claude Opus 4.8 (v0.9.0 release — Advanced SSH + Hardening, combined release)
+**Last updated:** 2026-07-04  
+**Updated by:** Claude Opus 4.8 (v1.0.0 Stable Release)
 
 ---
 
@@ -9,11 +9,34 @@
 
 | Field | Value |
 |-------|-------|
-| Version | **v0.9.0 (released 2026-07-03 — combined v0.8.0 Advanced SSH + v0.9.0 Hardening)** |
-| Latest released version | **v0.9.0** (tag `v0.9.0`) |
-| Git tag | `v0.4.0`, `v0.5.0`, `v0.7.0` unchanged; `v0.9.0` created; **no separate `v0.6.0`/`v0.8.0` tag** |
+| Version | **v1.0.0 (Stable Release, 2026-07-04)** — consolidates 0.4–0.9 scope; no new feature scope |
+| Latest released version | **v1.0.0** (tag `v1.0.0`) |
+| Git tag | `v0.4.0`, `v0.5.0`, `v0.7.0`, `v0.9.0` unchanged; `v1.0.0` created; **no separate `v0.6.0`/`v0.8.0` tag** |
 | Branch | `main` |
-| Previous release commit | `187cabf` (v0.7.0) |
+| Previous release commit | `4383b86` (v0.9.0) |
+
+---
+
+## v1.0.0 — Stable Release (2026-07-04)
+
+- **Scope:** stabilization only — version bump, docs/CHANGELOG/roadmap/handoff
+  updates, release gate, Windows portable packaging. **No product code changed**
+  (built on the v0.9.0 code plus the post-v0.9.0 build-tagged integration tests).
+- **Release gate (all green):** `go test ./...`, `go vet ./...`, `go mod verify`,
+  `go test -tags=integration ./...` (+ package-level, 3× stable), `npm run build`,
+  `build-windows.bat`.
+- **Artifact:** `ssh-terminal-v1.0.0-windows-portable.zip` (exe + README + LICENSE
+  only), copied to `E:\Backup\Releases\`. Released as tag `v1.0.0` + GitHub
+  Release (Latest). Older tags/releases unchanged; no v0.8.0 tag/release.
+- **Feature freeze holds:** future 1.x is maintenance/bugfix only; v1.1.0 NOT
+  started.
+- **Honest QA note:** GUI auto-reconnect cap/cancel/discriminator (Vue-side) was
+  **not separately human-tested**; its backend close signal is covered by the
+  integration tests and the frontend logic was reviewed with no new issue found.
+  Full manual GUI QA of the reconnect UX remains the one outstanding item
+  (`docs/QA_v0.8.0_v0.9.0.md` section E, all items still ☐).
+
+---
 
 ---
 

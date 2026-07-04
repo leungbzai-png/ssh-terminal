@@ -190,10 +190,27 @@ and v0.9.0 Hardening scopes shipped together under the single tag `v0.9.0`; ther
 is intentionally **no separate v0.8.0 tag or GitHub Release**. v0.4.0 / v0.5.0 /
 v0.7.0 tags/releases are unchanged. **v1.0.0 has not been started.**
 
-### v1.0.0 — Stable (NOT started)
-- [ ] Stable tag only — **no new major feature**
-- [ ] At least one release cycle with no Critical/High bugs
-- [ ] CHANGELOG maintained through the full 0.4–0.9 cycle
+### v1.0.0 — Stable (RELEASED 2026-07-04)
+- [x] Stable tag only — **no new major feature**
+- [x] CHANGELOG maintained through the full 0.4–0.9 cycle, plus a 1.0.0 entry
+- [x] Automated release gate green (unit + build-tagged Advanced SSH integration
+      tests + frontend build + Windows build)
+- [x] Windows portable artifact verified (exe + README + LICENSE only)
+- [x] Security / secret-storage regression checks pass
+
+**Status:** Released as **v1.0.0** on 2026-07-04 (tag `v1.0.0`, GitHub Release,
+Latest). Consolidates the 0.4–0.9 scope; **no new feature track**. v0.4.0 /
+v0.5.0 / v0.7.0 / v0.9.0 tags unchanged; no separate v0.8.0 tag/release.
+
+**Open item carried into 1.x:** full manual GUI QA of auto-reconnect (backend
+signal is covered by the integration gate; the GUI UX was not separately
+human-tested — see `docs/QA_v0.8.0_v0.9.0.md` section E).
+
+### Future 1.x — maintenance only (NOT started)
+- Bug fixes, small UX improvements, and carefully scoped enhancements only.
+- No active v1.1.0 work has been started. Do not open a new feature track
+  without explicit direction. macOS build support (item 18) remains post-1.0
+  and unscheduled.
 
 **Estimated timeline:** paced by stability, not calendar.
 
