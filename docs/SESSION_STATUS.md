@@ -36,7 +36,24 @@
   Full manual GUI QA of the reconnect UX remains the one outstanding item
   (`docs/QA_v0.8.0_v0.9.0.md` section E, all items still ☐).
 
----
+## Pre-v1.1.0 readiness pass (2026-07-04)
+
+- Re-ran the full gate against the v1.0.0 baseline (`83be738`): `go test ./...`,
+  `go vet`, `go mod verify`, `go test -tags=integration ./...` (+ package-level
+  verbose), `npm run build`, `build-windows.bat` — **all green**. Security scan
+  clean; working tree clean; no forbidden files tracked; `build-windows.bat`
+  builds only the exe (no release zip created, nothing uploaded).
+- **No product code bug found.** Auto-reconnect frontend logic reviewed again and
+  confirmed correct (unexpected-drop starts a capped burst; user-close/clean-exit
+  do not; cap/cancel/manual-supersede/success-reset all correct). **No v1.0.1
+  needed.**
+- Added a dedicated **manual QA checklist**: `docs/GUI_AUTO_RECONNECT_QA.md`
+  (authored, **not yet human-executed**; no case marked PASS). This is the one
+  remaining pre-expansion gap. Automated GUI coverage was intentionally not added
+  (no frontend test runner; would require a component refactor out of scope here).
+- **Ready to begin v1.1.0 feature iteration** once the user approves. This pass
+  changed docs only (checklist + pointers); the commit is local and **not pushed
+  / not tagged / not released** — awaiting explicit instruction.
 
 ---
 
