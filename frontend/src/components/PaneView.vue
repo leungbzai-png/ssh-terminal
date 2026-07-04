@@ -73,7 +73,10 @@ const activeTab = computed(() => {
   grid-template-columns: 1fr;
 }
 .split[data-split="on"] {
-  grid-template-columns: 1fr 360px;
+  /* Wider when the SFTP two-pane browser is open, capped so the terminal stays
+     usable; the SFTP region itself decides side-by-side vs stacked via a
+     container query. */
+  grid-template-columns: 1fr clamp(380px, 42vw, 780px);
 }
 .term-col {
   display: flex;

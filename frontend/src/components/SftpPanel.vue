@@ -5,6 +5,7 @@ import type { FileEntry, Bookmark, TextPreview } from "../wails.d";
 import ConfirmDialog from "./ConfirmDialog.vue";
 import InputDialog from "./InputDialog.vue";
 import TextPreviewDialog from "./TextPreviewDialog.vue";
+import SftpPane from "./SftpPane.vue";
 
 const props = defineProps<{ tabId: string; paneId: string }>();
 const sessions = useSessions();
@@ -336,8 +337,11 @@ watch(
 </script>
 
 <template>
-  <aside class="sftp" @contextmenu="openCtx($event, null)">
+  <div class="sftp-split">
+    <SftpPane class="pane-local" />
+    <aside class="sftp pane-remote" @contextmenu="openCtx($event, null)">
     <header>
+      <span class="pane-tag">远程</span>
       <button class="icon-btn" title="上一级" @click="up">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12l7-7 7 7M12 5v14"/></svg>
       </button>
@@ -487,15 +491,57 @@ watch(
       :preview="preview.data"
       @close="preview = null"
     />
-  </aside>
+    </aside>
+  </div>
 </template>
 
 <style scoped>
+/* Two-pane container: local | remote. Stacked (vertical) by default for a
+   narrow SFTP column; switches to side-by-side once the region is wide enough.
+   Uses a container query so it responds to the SFTP region's own width, not the
+   viewport. */
+.sftp-split {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  container-type: inline-size;
+}
+.sftp-split > .pane-local,
+.sftp-split > .pane-remote {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+/* Divider between the panes (horizontal when stacked). */
+.sftp-split > .pane-remote {
+  border-top: 1px solid var(--border);
+}
+@container (min-width: 560px) {
+  .sftp-split {
+    flex-direction: row;
+  }
+  .sftp-split > .pane-remote {
+    border-top: none;
+    border-left: 1px solid var(--border);
+  }
+}
+.pane-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
 .sftp {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--border);
   background: var(--bg-elev);
   min-width: 0;
   min-height: 0;
