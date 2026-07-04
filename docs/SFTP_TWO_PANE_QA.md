@@ -72,9 +72,37 @@ Run/version: `__________`  Date: `__________`  Tester: `__________`
 | X2 | **App.vue drag-drop**: drag files from the OS into the window | Still uploads to the remote cwd with the drop overlay + progress (the `app:filedrop` / `sftp:progress` path is unchanged). | ☐ |
 | X3 | Open/close the SFTP panel repeatedly; open on multiple panes | No leaked listeners, no console errors, local pane re-loads home each open. | ☐ |
 
+### Two-pane transfers (commit 4)
+
+Select a row with a single click; the selected row is highlighted. **Upload →**
+sends the selected **local** entry into the current **remote** directory;
+**← Download** sends the selected **remote** entry into the current **local**
+directory. Both buttons are disabled until a valid selection + destination
+exist. Overwrite is confirmed via a dialog.
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| T1 | Select a local file, note the remote cwd | Upload → becomes enabled; ← Download disabled until a remote row is selected. | ☐ |
+| T2 | Upload → a local **file** | File appears in the remote pane after transfer; progress bar shown; remote pane refreshes. | ☐ |
+| T3 | Upload → a local **folder** | Folder tree is uploaded recursively; remote pane refreshes. | ☐ |
+| T4 | Upload → when the remote name already exists → **Cancel** | Overwrite dialog appears; Cancel does nothing (no transfer). | ☐ |
+| T5 | Upload → when the remote name already exists → **Confirm (覆盖)** | Transfer proceeds and overwrites. | ☐ |
+| T6 | Select a remote file, note the local cwd | ← Download becomes enabled. | ☐ |
+| T7 | ← Download a remote **file** | File appears in the local pane after transfer; local pane refreshes. | ☐ |
+| T8 | ← Download a remote **folder** | Folder tree is downloaded recursively into local cwd; local pane refreshes. | ☐ |
+| T9 | ← Download when the local name already exists → **Cancel** | Overwrite dialog appears; Cancel does nothing. | ☐ |
+| T10 | ← Download when the local name already exists → **Confirm (覆盖)** | Transfer proceeds and overwrites. | ☐ |
+| T11 | Progress bar | Shows during both upload and download, then clears on completion. | ☐ |
+| T12 | Transfer failure (e.g. permission denied) | A readable error is shown; no crash. | ☐ |
+| T13 | Buttons disabled at roots | With the local pane at the roots list ("此电脑"), Upload →/← Download are disabled (no valid local cwd/selection). | ☐ |
+| T14 | Old remote actions still work | Remote header upload, per-row download, mkdir, rename, delete-with-confirm, bookmarks, preview all still function. | ☐ |
+| T15 | **App.vue drag-drop still works** | Dragging OS files into the window still uploads to the remote cwd via the unchanged `app:filedrop` path. | ☐ |
+| T16 | Tab switch during/after a transfer | xfer progress stays scoped to the correct tab; no cross-tab bleed. | ☐ |
+| T17 | **LocalParent multi-return on a real Windows build** | Local "up" navigation works correctly at every level incl. drive root (verifies the Wails `(string, bool)` marshalling in practice). | ☐ |
+
 ## Notes for the tester
 
-- The local pane is **read-only** in this build; it browses only. Cross-pane
-  Upload →/← Download wiring lands in commit 4 and has its own checklist rows.
 - Do not mark the suite "passed" unless every case was actually executed by a
   human on a real build. Skipped cases stay ☐.
+- No secrets, real credentials, real private keys, or real server addresses in
+  any repo file or screenshot.

@@ -550,6 +550,23 @@ func (m *Manager) Rename(sessionID string, sshClient *ssh.Client, oldPath, newPa
 	return c.Rename(oldPath, newPath)
 }
 
+// Exists reports whether a remote path exists. A non-existent path returns
+// (false, nil); any other stat error is returned. Used for overwrite
+// confirmation before an upload.
+func (m *Manager) Exists(sessionID string, sshClient *ssh.Client, remotePath string) (bool, error) {
+	c, err := m.client(sessionID, sshClient)
+	if err != nil {
+		return false, err
+	}
+	if _, serr := c.Stat(remotePath); serr != nil {
+		if errors.Is(serr, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, serr
+	}
+	return true, nil
+}
+
 var ErrNoSession = errors.New("no sftp session")
 
 // IsProbablyText reports whether data looks like decodable UTF-8 text (safe to

@@ -14,11 +14,31 @@ const props = withDefaults(defineProps<{ side?: "local" | "remote" }>(), {
   side: "local",
 });
 
+// Notify the parent (SftpPanel) of the current cwd and the single selection so
+// it can enable/disable the transfer buttons and compute destinations.
+const emit = defineEmits<{
+  cwd: [{ path: string; atRoots: boolean }];
+  selection: [FileEntry | null];
+}>();
+
 const cwd = ref<string>(""); // "" while showing the roots list
 const atRoots = ref(false);
 const entries = ref<FileEntry[]>([]);
 const loading = ref(false);
 const error = ref<string>("");
+const selected = ref<FileEntry | null>(null);
+
+function select(e: FileEntry) {
+  selected.value = e;
+  emit("selection", e);
+}
+
+// clearSelection + publish the new cwd whenever the listing changes.
+function published() {
+  selected.value = null;
+  emit("selection", null);
+  emit("cwd", { path: cwd.value, atRoots: atRoots.value });
+}
 
 function sortEntries(list: FileEntry[]): FileEntry[] {
   return [...list].sort((a, b) => {
@@ -35,6 +55,7 @@ async function loadDir(dir: string) {
     entries.value = sortEntries(list);
     cwd.value = dir;
     atRoots.value = false;
+    published();
   } catch (e: any) {
     error.value = String(e?.message || e);
   } finally {
@@ -58,6 +79,7 @@ async function loadRoots() {
     }));
     cwd.value = "";
     atRoots.value = true;
+    published();
   } catch (e: any) {
     error.value = String(e?.message || e);
   } finally {
@@ -128,6 +150,9 @@ function fmtSize(n: number) {
 }
 
 onMounted(loadHome);
+
+// Parent (SftpPanel) calls refresh() after a successful download into this cwd.
+defineExpose({ refresh });
 </script>
 
 <template>
@@ -153,7 +178,8 @@ onMounted(loadHome);
           v-for="e in entries"
           :key="e.path"
           class="entry"
-          :class="{ dir: e.isDir }"
+          :class="{ dir: e.isDir, sel: selected?.path === e.path }"
+          @click="select(e)"
           @dblclick="enter(e)"
         >
           <span class="ic">
@@ -241,6 +267,11 @@ header {
 }
 .entry:hover {
   background: var(--bg-hover);
+}
+.entry.sel {
+  background: var(--bg-active, var(--bg-hover));
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
 }
 .entry.dir {
   color: var(--accent);

@@ -6,6 +6,7 @@
 package localfs
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -83,6 +84,20 @@ func Roots() ([]string, error) {
 		}
 	}
 	return roots, nil
+}
+
+// Exists reports whether a local path exists. A non-existent path returns
+// (false, nil); any other stat error is returned. It is used for overwrite
+// confirmation before a download and reads nothing but the path's metadata.
+func Exists(p string) (bool, error) {
+	_, err := os.Stat(p)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
 }
 
 // Parent returns the parent directory of dir and whether dir is itself a

@@ -18,6 +18,104 @@ const error = ref<string>("");
 // Transfer progress (upload/download) via the dedicated sftp:xfer:* events.
 const xfer = ref<{ dir: string; pct: number; current: string } | null>(null);
 
+// --- Two-pane transfer wiring (v1.1.0 commit 4) ---
+// Local pane state is mirrored here (via SftpPane events) only to enable the
+// transfer buttons and compute destinations; it is never persisted.
+const localPaneRef = ref<InstanceType<typeof SftpPane> | null>(null);
+const localSel = ref<FileEntry | null>(null);
+const localCwd = ref<string>("");
+const localAtRoots = ref(false);
+const remoteSel = ref<FileEntry | null>(null);
+// A pending overwrite confirmation: message + the transfer to run on confirm.
+const confirmXfer = ref<{ message: string; run: () => Promise<void> } | null>(null);
+
+function onLocalSelection(e: FileEntry | null) {
+  localSel.value = e;
+}
+function onLocalCwd(info: { path: string; atRoots: boolean }) {
+  localCwd.value = info.path;
+  localAtRoots.value = info.atRoots;
+}
+function selectRemote(e: FileEntry) {
+  remoteSel.value = e;
+}
+
+const canUpload = computed(() => !!localSel.value && !localAtRoots.value && !!cwd.value);
+const canDownload = computed(() => !!remoteSel.value && !!localCwd.value && !localAtRoots.value);
+
+// remoteJoin: POSIX join for remote paths (matches the backend's basename join).
+function remoteJoin(dir: string, name: string): string {
+  if (!dir || dir === "/") return "/" + name;
+  return (dir.endsWith("/") ? dir : dir + "/") + name;
+}
+// localJoin: native join; backend LocalExists / DownloadPaths are the source of
+// truth, this only computes the path to existence-check.
+function localJoin(dir: string, name: string): string {
+  if (!dir) return name;
+  if (dir.endsWith("\\") || dir.endsWith("/")) return dir + name;
+  return dir + (dir.includes("\\") ? "\\" : "/") + name;
+}
+
+// Upload the selected local entry into the current remote cwd, prompting on
+// overwrite. Reuses the existing SftpUploadTracked / UploadPaths backend.
+async function uploadSelected() {
+  const sel = localSel.value;
+  if (!sel || localAtRoots.value || !cwd.value) return;
+  const dest = remoteJoin(cwd.value, sel.name);
+  const run = async () => {
+    xfer.value = { dir: "upload", pct: 0, current: sel.name };
+    try {
+      await window.go.main.App.SftpUploadTracked(props.tabId, [sel.path], cwd.value);
+    } catch (e: any) {
+      xfer.value = null;
+      error.value = String(e?.message || e);
+    }
+  };
+  try {
+    if (await window.go.main.App.SftpExists(props.tabId, dest)) {
+      confirmXfer.value = { message: `远程已存在 “${sel.name}”，是否覆盖？`, run };
+      return;
+    }
+  } catch (e: any) {
+    error.value = String(e?.message || e);
+    return;
+  }
+  await run();
+}
+
+// Download the selected remote entry into the current local cwd, prompting on
+// overwrite. Reuses SftpDownloadPathsTracked (recursive for folders).
+async function downloadSelected() {
+  const sel = remoteSel.value;
+  if (!sel || !localCwd.value || localAtRoots.value) return;
+  const dest = localJoin(localCwd.value, sel.name);
+  const run = async () => {
+    xfer.value = { dir: "download", pct: 0, current: sel.name };
+    try {
+      await window.go.main.App.SftpDownloadPathsTracked(props.tabId, [sel.path], localCwd.value);
+    } catch (e: any) {
+      xfer.value = null;
+      error.value = String(e?.message || e);
+    }
+  };
+  try {
+    if (await window.go.main.App.LocalExists(dest)) {
+      confirmXfer.value = { message: `本地已存在 “${sel.name}”，是否覆盖？`, run };
+      return;
+    }
+  } catch (e: any) {
+    error.value = String(e?.message || e);
+    return;
+  }
+  await run();
+}
+
+async function runConfirmedXfer() {
+  const pending = confirmXfer.value;
+  confirmXfer.value = null;
+  if (pending) await pending.run();
+}
+
 // Remote path bookmarks (per saved host). Quick Connect tabs have no hostId.
 const hostId = computed(() => sessions.tabs[props.tabId]?.hostId || "");
 const bookmarks = ref<Bookmark[]>([]);
@@ -83,6 +181,7 @@ const pendingRenameEntry = ref<FileEntry | null>(null);
 async function load(dir: string) {
   loading.value = true;
   error.value = "";
+  remoteSel.value = null; // selection is per-listing
   try {
     if (!dir) {
       dir = await window.go.main.App.SftpCwd(props.tabId);
@@ -278,6 +377,7 @@ function onXferDone(r: { ok: boolean; err: string; direction: string }) {
     xfer.value = { dir: r.direction, pct: 100, current: "完成" };
     setTimeout(() => (xfer.value = null), 700);
     if (r.direction === "upload") load(cwd.value);
+    else localPaneRef.value?.refresh();
   } else {
     xfer.value = null;
     error.value = "传输失败: " + r.err;
@@ -338,7 +438,30 @@ watch(
 
 <template>
   <div class="sftp-split">
-    <SftpPane class="pane-local" />
+    <SftpPane
+      ref="localPaneRef"
+      class="pane-local"
+      @selection="onLocalSelection"
+      @cwd="onLocalCwd"
+    />
+    <div class="xfer-controls">
+      <button
+        class="xfer-btn"
+        :disabled="!canUpload"
+        title="上传所选本地项到当前远程目录"
+        @click="uploadSelected"
+      >
+        上传 →
+      </button>
+      <button
+        class="xfer-btn"
+        :disabled="!canDownload"
+        title="下载所选远程项到当前本地目录"
+        @click="downloadSelected"
+      >
+        ← 下载
+      </button>
+    </div>
     <aside class="sftp pane-remote" @contextmenu="openCtx($event, null)">
     <header>
       <span class="pane-tag">远程</span>
@@ -386,7 +509,8 @@ watch(
           v-for="e in entries"
           :key="e.path"
           class="entry"
-          :class="{ dir: e.isDir }"
+          :class="{ dir: e.isDir, sel: remoteSel?.path === e.path }"
+          @click="selectRemote(e)"
           @dblclick="enter(e)"
           @contextmenu.stop="openCtx($event, e)"
         >
@@ -491,6 +615,17 @@ watch(
       :preview="preview.data"
       @close="preview = null"
     />
+
+    <!-- Overwrite confirmation for two-pane transfers -->
+    <ConfirmDialog
+      v-if="confirmXfer"
+      title="目标已存在"
+      :message="confirmXfer.message"
+      confirmLabel="覆盖"
+      :danger="true"
+      @confirm="runConfirmedXfer"
+      @cancel="confirmXfer = null"
+    />
     </aside>
   </div>
 </template>
@@ -537,6 +672,49 @@ watch(
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   flex-shrink: 0;
+}
+/* Transfer controls strip between the panes. It's a flex item, so it sits
+   between local and remote in both the row (side-by-side) and column (stacked)
+   layouts of .sftp-split. */
+.xfer-controls {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border);
+}
+@container (min-width: 560px) {
+  .xfer-controls {
+    flex-direction: column;
+    border-top: none;
+    border-left: 1px solid var(--border);
+  }
+}
+.xfer-btn {
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev-2);
+  color: var(--fg);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.xfer-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.xfer-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.entry.sel {
+  background: var(--bg-active, var(--bg-hover));
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
 }
 .sftp {
   position: relative;

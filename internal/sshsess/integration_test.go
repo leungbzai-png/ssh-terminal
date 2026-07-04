@@ -452,6 +452,15 @@ func TestIntegrationSFTPDownloadPaths(t *testing.T) {
 	defer sm.CloseAll()
 
 	remoteTree := toSFTPPath(tree)
+
+	// Exists: the tree exists remotely; a sibling that was never created does not.
+	if ok, err := sm.Exists("sftp", client, remoteTree); err != nil || !ok {
+		t.Fatalf("Exists(tree) = (%v, %v), want (true, nil)", ok, err)
+	}
+	if ok, err := sm.Exists("sftp", client, toSFTPPath(filepath.Join(remoteRoot, "nope"))); err != nil || ok {
+		t.Fatalf("Exists(missing) = (%v, %v), want (false, nil)", ok, err)
+	}
+
 	localDest := t.TempDir()
 	if err := sm.DownloadPaths("sftp", client, []string{remoteTree}, localDest, nil); err != nil {
 		t.Fatalf("DownloadPaths: %v", err)

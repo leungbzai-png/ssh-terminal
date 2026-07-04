@@ -748,6 +748,22 @@ func (a *App) SftpDownloadPathsTracked(sessionID string, remotePaths []string, l
 	return err
 }
 
+// SftpExists reports whether a remote path exists (for overwrite confirmation
+// before a two-pane upload). Not-exist is (false, nil).
+func (a *App) SftpExists(sessionID, remotePath string) (bool, error) {
+	c, err := a.ssh.Client(sessionID)
+	if err != nil {
+		return false, err
+	}
+	return a.sftp.Exists(sessionID, c, remotePath)
+}
+
+// LocalExists reports whether a local path exists (for overwrite confirmation
+// before a two-pane download). Not-exist is (false, nil).
+func (a *App) LocalExists(path string) (bool, error) {
+	return localfs.Exists(path)
+}
+
 // --- Remote path bookmarks (v0.7.0) ---
 
 // ListBookmarks returns a host's remote-path bookmarks (non-secret).

@@ -183,6 +183,32 @@ func TestParentTerminatesAtRoot(t *testing.T) {
 	}
 }
 
+func TestExists(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "present.txt")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	// Existing file and existing directory => true.
+	for _, p := range []string{file, dir} {
+		ok, err := Exists(p)
+		if err != nil {
+			t.Errorf("Exists(%q) error: %v", p, err)
+		}
+		if !ok {
+			t.Errorf("Exists(%q) = false, want true", p)
+		}
+	}
+	// Missing path => (false, nil), not an error.
+	ok, err := Exists(filepath.Join(dir, "missing.txt"))
+	if err != nil {
+		t.Errorf("Exists(missing) error: %v", err)
+	}
+	if ok {
+		t.Error("Exists(missing) = true, want false")
+	}
+}
+
 func TestParentRootDirect(t *testing.T) {
 	var root string
 	if runtime.GOOS == "windows" {

@@ -39,6 +39,7 @@ declare global {
           SftpUploadTracked: (sessionID: string, localPaths: string[], remoteDir: string) => Promise<void>;
           SftpDownloadTracked: (sessionID: string, remote: string, local: string) => Promise<void>;
           SftpDownloadPathsTracked: (sessionID: string, remotePaths: string[], localDir: string) => Promise<void>;
+          SftpExists: (sessionID: string, remotePath: string) => Promise<boolean>;
           SftpPreviewText: (sessionID: string, remote: string) => Promise<TextPreview>;
           SftpDelete: (sessionID: string, remote: string) => Promise<void>;
           SftpDeleteRecursive: (sessionID: string, remote: string) => Promise<void>;
@@ -50,6 +51,7 @@ declare global {
           LocalHome: () => Promise<string>;
           LocalRoots: () => Promise<string[]>;
           LocalParent: (dir: string) => Promise<[string, boolean]>;
+          LocalExists: (path: string) => Promise<boolean>;
 
           ListKeys: () => Promise<ManagedKey[]>;
           GenerateKey: (name: string, comment: string, keyType: string, rsaBits: number, passphrase: string) => Promise<ManagedKey>;
