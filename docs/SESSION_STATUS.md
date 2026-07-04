@@ -183,6 +183,12 @@ Manual QA A–I passed; tag `v0.5.0` + GitHub Release published.
 - Tests: `internal/hosts/advanced_test.go` + `compat_test.go`, `internal/redact/redact_test.go`, `internal/sshsess/diag_test.go` + `socks_test.go`, `advanced_app_test.go` (connect-error redaction, jump resolution, advanced export safety). All `go test ./...` + `go vet` pass; `npm run build` + `build-windows.bat` pass. `go test -race` not run (no gcc/CGO here).
 - **Released** as combined **v0.9.0**: annotated tag `v0.9.0`, GitHub Release (latest), artifact `ssh-terminal-v0.9.0-windows-portable.zip`. **No separate v0.8.0 tag/Release.** v0.4.0 / v0.5.0 / v0.7.0 tags unchanged. Manual QA checklist: `docs/QA_v0.8.0_v0.9.0.md`.
 
+### Post-v0.9.0 — Advanced SSH integration tests (2026-07-04, no release)
+- The temporary `qa-local/sshqa/` backend-live QA harness was converted into a **committed, build-tagged Go integration suite** under `internal/sshsess/` (`integration_test.go` + `integration_server_test.go`, both `//go:build integration`).
+- Covers ProxyJump/bastion, local/remote/dynamic-SOCKS forwarding, occupied-port resilience, connection diagnostics (TCP/auth/DNS/key/proxyjump), runtime cleanup (`CloseAll`→0, listener release), and the auto-reconnect close signal (unexpected-drop vs user-close). Disposable in-process SSH servers on 127.0.0.1; no real VPS, no committed secrets, all credentials runtime-generated, errors redacted.
+- Excluded from `go test ./...`; run with `go test -tags=integration ./...` (or `go test -tags=integration ./internal/sshsess -run Integration -v`). Docs: `docs/INTEGRATION_TESTS.md`.
+- **No release/tag/push/version bump.** v0.9.0 remains latest; **v1.0.0 not started.** Use this suite as a v1.0.0 readiness gate.
+
 ### Next: v1.0.0 — Stable Release — do not start unprompted
 - Stabilization + release cycle only; no new major feature. **Not started.**
 

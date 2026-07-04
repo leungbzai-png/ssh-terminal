@@ -191,11 +191,28 @@ If you add a new `authType` value:
 
 ## Testing (Current State)
 
-There are **no automated tests**. All verification is manual via `docs/QA_CHECKLIST.md`.
+The project now has **unit tests** across `internal/*` (hosts, keymgr, redact,
+sshsess diag/socks, session, bookmarks, sftpx, sshconfig) plus `app_test.go`.
+Run them the normal way — fast, offline, no build tag:
 
-Priority order for adding tests if you pick this up:
-1. `internal/cryptox` — pure functions, easy to test, handles sensitive data
-2. `internal/portable` — pure path resolution
-3. `internal/config` — JSON round-trip
-4. `internal/hosts` — integration test with temp directory
-5. `internal/keymgr` — integration test with temp directory + mock crypto
+```bash
+go test ./...
+```
+
+**Advanced SSH integration suite (build-tagged, backend-live).** `internal/sshsess`
+carries `integration_test.go` + `integration_server_test.go` behind
+`//go:build integration`. They drive the real `Manager` against **disposable
+in-process SSH servers on 127.0.0.1** — ProxyJump, local/remote/dynamic-SOCKS
+forwarding, occupied-port resilience, connection diagnostics, runtime cleanup,
+and the auto-reconnect close signal. They are **excluded** from `go test ./...`
+and never touch a real server or secret (all credentials runtime-generated,
+errors redacted). Run on demand:
+
+```bash
+go test -tags=integration ./...
+go test -tags=integration ./internal/sshsess -run Integration -v
+```
+
+See `docs/INTEGRATION_TESTS.md` for coverage and limitations (GUI auto-reconnect
+still needs manual QA; `-race` needs CGO/GCC on Windows). Use this suite as a
+v1.0.0 readiness gate.
