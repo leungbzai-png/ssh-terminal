@@ -44,6 +44,12 @@ declare global {
           SftpMkdir: (sessionID: string, remote: string) => Promise<void>;
           SftpRename: (sessionID: string, oldPath: string, newPath: string) => Promise<void>;
 
+          // Local filesystem browse (v1.1.0, SFTP two-pane local pane). Reuses FileEntry.
+          LocalList: (dir: string) => Promise<FileEntry[]>;
+          LocalHome: () => Promise<string>;
+          LocalRoots: () => Promise<string[]>;
+          LocalParent: (dir: string) => Promise<[string, boolean]>;
+
           ListKeys: () => Promise<ManagedKey[]>;
           GenerateKey: (name: string, comment: string, keyType: string, rsaBits: number, passphrase: string) => Promise<ManagedKey>;
           ImportPrivateKey: (name: string, comment: string, keyPath: string, passphrase: string) => Promise<ManagedKey>;

@@ -17,6 +17,7 @@ import (
 	"github.com/leungbzai-png/ssh-terminal/internal/config"
 	"github.com/leungbzai-png/ssh-terminal/internal/hosts"
 	"github.com/leungbzai-png/ssh-terminal/internal/keymgr"
+	"github.com/leungbzai-png/ssh-terminal/internal/localfs"
 	"github.com/leungbzai-png/ssh-terminal/internal/portable"
 	"github.com/leungbzai-png/ssh-terminal/internal/redact"
 	"github.com/leungbzai-png/ssh-terminal/internal/session"
@@ -807,6 +808,32 @@ func (a *App) SftpRename(sessionID, oldPath, newPath string) error {
 		return err
 	}
 	return a.sftp.Rename(sessionID, c, oldPath, newPath)
+}
+
+// --- Local filesystem browse (v1.1.0, SFTP two-pane local pane) ---
+//
+// These are read-only browse helpers for the local pane. They never write,
+// never persist a path or listing, and touch no secret storage.
+
+// LocalList returns the contents of a local directory (files, folders, symlinks).
+func (a *App) LocalList(dir string) ([]localfs.Entry, error) {
+	return localfs.List(dir)
+}
+
+// LocalHome returns the current user's home directory.
+func (a *App) LocalHome() (string, error) {
+	return localfs.Home()
+}
+
+// LocalRoots returns the local filesystem roots (Windows drive roots, or "/").
+func (a *App) LocalRoots() ([]string, error) {
+	return localfs.Roots()
+}
+
+// LocalParent returns the parent of dir and whether dir is a filesystem root
+// (in which case the frontend should show the roots list instead).
+func (a *App) LocalParent(dir string) (string, bool) {
+	return localfs.Parent(dir)
 }
 
 func (a *App) PickFileToUpload() (string, error) {
