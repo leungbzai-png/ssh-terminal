@@ -2,13 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.0] - Unreleased (prepared; pending manual GUI QA + release)
+## [1.1.0] - 2026-07-05
 
-> **Status:** version prepared for v1.1.0. The latest **formal release is still
-> v1.0.0** — no `v1.1.0` tag or GitHub Release exists yet. The manual SFTP
-> two-pane GUI QA (`docs/SFTP_TWO_PANE_QA.md`) has **not** been executed by a
-> human; the backend paths are covered by automated unit + build-tagged
-> integration tests.
+> **Release caveat (read this):** the SFTP two-pane feature is **code-complete**
+> and its **automated** unit + build-tagged integration tests pass (including the
+> `internal/localfs` browse API and the recursive `sftpx.DownloadPaths` /
+> `Exists` backend). However, the **manual SFTP two-pane GUI QA**
+> (`docs/SFTP_TWO_PANE_QA.md`) was **NOT executed** before this release — those
+> cases remain NOT RUN. The GUI flows (pane rendering, drag-drop regression,
+> overwrite dialogs, progress, and the `LocalParent` Wails multi-return) should
+> be treated as **release-caveated until user-tested**. This mirrors the posture
+> v1.0.0 shipped with for GUI auto-reconnect.
 
 ### Added — SFTP Two-Pane Foundation
 - **Local/remote two-pane file browser.** The SFTP panel now shows a **local**

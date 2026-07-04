@@ -206,19 +206,21 @@ v0.5.0 / v0.7.0 / v0.9.0 tags unchanged; no separate v0.8.0 tag/release.
 signal is covered by the integration gate; the GUI UX was not separately
 human-tested — see `docs/QA_v0.8.0_v0.9.0.md` section E).
 
-### v1.1.0 — SFTP Two-Pane Foundation (PREPARED; pending manual GUI QA + release)
+### v1.1.0 — SFTP Two-Pane Foundation (RELEASED 2026-07-05, with GUI-QA caveat)
 - [x] Local filesystem browse API (`internal/localfs`) + unit tests
 - [x] Recursive remote→local download (`sftpx.DownloadPaths`) + integration test
 - [x] Local/remote two-pane SFTP UI (responsive side-by-side / stacked)
 - [x] Two-pane upload/download wiring + overwrite confirmation (`SftpExists`/`LocalExists`)
 - [x] Version bumped to 1.1.0; docs updated; automated release gate green
-- [ ] **Manual SFTP two-pane GUI QA** (`docs/SFTP_TWO_PANE_QA.md`) — NOT yet human-executed
-- [ ] Tag `v1.1.0` + GitHub Release — **not created**
+- [x] Tag `v1.1.0` + GitHub Release (Latest)
+- [ ] **Manual SFTP two-pane GUI QA** (`docs/SFTP_TWO_PANE_QA.md`) — **NOT executed**;
+      released with a documented caveat (user chose release-with-caveat)
 
-**Status:** code-complete and version-prepared, but **not released**. The latest
-formal release remains **v1.0.0**. Explicitly out of scope for v1.1.0: transfer
-queue, multi-threaded/resumable transfer, background transfer manager,
-multi-select, persisted conflict strategy, and any file editor.
+**Status:** released as **v1.1.0** on 2026-07-05 with an explicit caveat that the
+manual SFTP two-pane **GUI** QA was not executed (backend covered by automated
+tests). Explicitly out of scope for v1.1.0: transfer queue,
+multi-threaded/resumable transfer, background transfer manager, multi-select,
+persisted conflict strategy, and any file editor. v1.0.0 tag/release unchanged.
 
 ### Future 1.x — maintenance / scoped enhancements
 - Bug fixes, small UX improvements, and carefully scoped enhancements only.

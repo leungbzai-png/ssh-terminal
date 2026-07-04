@@ -1,7 +1,7 @@
 # Session Status — SSH Terminal
 
 **Last updated:** 2026-07-05  
-**Updated by:** Claude Opus 4.8 (v1.1.0 SFTP two-pane — release prep, unreleased)
+**Updated by:** Claude Opus 4.8 (v1.1.0 SFTP two-pane — released with GUI-QA caveat)
 
 ---
 
@@ -9,35 +9,34 @@
 
 | Field | Value |
 |-------|-------|
-| Dev version (metadata) | **1.1.0 (in preparation; NOT released)** — SFTP Two-Pane Foundation |
-| **Latest formal release** | **v1.0.0** (tag `v1.0.0`, GitHub Latest) — unchanged |
-| Git tag | `v0.4.0`–`v1.0.0` unchanged; **no `v1.1.0` tag exists** |
+| **Latest release** | **v1.1.0 (2026-07-05)** — SFTP Two-Pane Foundation (released with GUI-QA caveat) |
+| Previous stable | **v1.0.0** (tag `v1.0.0`) — unchanged |
+| Git tag | `v0.4.0`–`v1.0.0` unchanged; **`v1.1.0` created** at this final commit |
 | Branch | `main` |
-| Previous release commit | `4383b86` (v0.9.0) |
+| Previous release commit | `83be738` (v1.0.0) |
 
 ---
 
-## v1.1.0 — SFTP Two-Pane Foundation (release prep, 2026-07-05, UNRELEASED)
+## v1.1.0 — SFTP Two-Pane Foundation (RELEASED 2026-07-05, with GUI-QA caveat)
 
-- **Scope (all merged to `main` across commits 1–4):** local filesystem browse
-  API (`internal/localfs`), recursive remote→local `sftpx.DownloadPaths`, the
+- **Scope (merged to `main` across commits 1–4):** local filesystem browse API
+  (`internal/localfs`), recursive remote→local `sftpx.DownloadPaths`, the
   local/remote two-pane SFTP UI, and two-pane upload/download wiring with
-  overwrite confirmation (`SftpExists`/`LocalExists`).
-- **This commit (5):** version bump 1.0.0 → 1.1.0 (app.go, wails.json,
-  frontend/package.json + package-lock ×2), CHANGELOG `[1.1.0] - Unreleased`
-  entry, and doc updates. No product-behavior change beyond the QA/version prep.
+  overwrite confirmation (`SftpExists`/`LocalExists`). Commit 5 bumped the
+  version to 1.1.0; this final commit finalizes the release notes.
 - **Automated release gate: green** — `go test ./...`, `go vet`, `go mod verify`,
   `go test -tags=integration ./...` (+ package-level), `npm run build`,
   `build-windows.bat`. localfs (List/Home/Roots/Parent/Exists) and the SFTP
   integration test (DownloadPaths + Exists) cover the backend paths.
 - **⚠ Manual SFTP two-pane GUI QA: NOT executed** (`docs/SFTP_TWO_PANE_QA.md`,
   all cases still ☐/NOT RUN). The two-pane UI, drag-drop regression, overwrite
-  dialogs, and the `LocalParent` Wails multi-return were **not** human-tested in
-  this session. This is the same honest posture v1.0.0 shipped with for GUI
-  auto-reconnect.
-- **NOT released:** no `v1.1.0` tag, no GitHub Release, no artifact uploaded;
-  v1.0.0 tag/release untouched. Tagging/release awaits human GUI QA and explicit
-  approval.
+  dialogs, and the `LocalParent` Wails multi-return were **not** human-tested
+  before release. **The user explicitly chose to release with this documented
+  caveat** — the GUI flows should be treated as caveated until user-tested (same
+  posture v1.0.0 shipped with for GUI auto-reconnect).
+- **Released:** annotated tag `v1.1.0` + GitHub Release (Latest); artifact
+  `ssh-terminal-v1.1.0-windows-portable.zip` (exe + README + LICENSE only). No
+  QA case was marked PASS. v1.0.0 tag/release untouched.
 
 ---
 
