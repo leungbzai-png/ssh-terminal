@@ -188,6 +188,7 @@ Manual QA A–I passed; tag `v0.5.0` + GitHub Release published.
 - Covers ProxyJump/bastion, local/remote/dynamic-SOCKS forwarding, occupied-port resilience, connection diagnostics (TCP/auth/DNS/key/proxyjump), runtime cleanup (`CloseAll`→0, listener release), and the auto-reconnect close signal (unexpected-drop vs user-close). Disposable in-process SSH servers on 127.0.0.1; no real VPS, no committed secrets, all credentials runtime-generated, errors redacted.
 - Excluded from `go test ./...`; run with `go test -tags=integration ./...` (or `go test -tags=integration ./internal/sshsess -run Integration -v`). Docs: `docs/INTEGRATION_TESTS.md`.
 - **No release/tag/push/version bump.** v0.9.0 remains latest; **v1.0.0 not started.** Use this suite as a v1.0.0 readiness gate.
+- **Project is in feature freeze** until v1.0.0: only stabilization, tests, and docs — no new product features. **v1.0.0 readiness gate** = `go test ./...` + `go test -tags=integration ./...` + `go vet ./...` + `go mod verify` + `npm run build` + `build-windows.bat` all green. Only remaining pre-v1.0.0 manual item: **GUI auto-reconnect cap/cancel/discriminator** (Vue-side; not covered by the backend-live integration tests).
 
 ### Next: v1.0.0 — Stable Release — do not start unprompted
 - Stabilization + release cycle only; no new major feature. **Not started.**
