@@ -38,6 +38,7 @@ declare global {
           SftpUploadPaths: (sessionID: string, localPaths: string[], remoteDir: string) => Promise<void>;
           SftpUploadTracked: (sessionID: string, localPaths: string[], remoteDir: string) => Promise<void>;
           SftpDownloadTracked: (sessionID: string, remote: string, local: string) => Promise<void>;
+          SftpDownloadPathsTracked: (sessionID: string, remotePaths: string[], localDir: string) => Promise<void>;
           SftpPreviewText: (sessionID: string, remote: string) => Promise<TextPreview>;
           SftpDelete: (sessionID: string, remote: string) => Promise<void>;
           SftpDeleteRecursive: (sessionID: string, remote: string) => Promise<void>;

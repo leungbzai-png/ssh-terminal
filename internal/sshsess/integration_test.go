@@ -20,6 +20,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/leungbzai-png/ssh-terminal/internal/hosts"
 	"github.com/leungbzai-png/ssh-terminal/internal/redact"
+	"github.com/leungbzai-png/ssh-terminal/internal/sftpx"
 )
 
 // resetKnownHosts removes the per-process known_hosts file so every connection
@@ -414,4 +416,75 @@ func writeGarbageKey(t *testing.T) string {
 		t.Fatalf("write garbage key: %v", err)
 	}
 	return path
+}
+
+// TestIntegrationSFTPDownloadPaths drives the real sftpx.Manager.DownloadPaths
+// against the in-process SFTP subsystem (see serveSFTP), downloading a remote
+// directory tree — a top-level file, a nested directory, and a nested file —
+// into a t.TempDir and asserting the tree and byte contents. It also re-runs to
+// cover downloading over an existing destination. All paths are local temp dirs
+// on 127.0.0.1; no real server, credential, or network is used.
+func TestIntegrationSFTPDownloadPaths(t *testing.T) {
+	resetKnownHosts(t)
+	srv := newTestServer(t)
+	mgr := newManagerT(nil, nil)
+
+	// Build the "remote" tree on this process's filesystem (the SFTP server
+	// serves the real FS). remoteRoot/tree/{top.txt, sub/nested.txt}.
+	remoteRoot := t.TempDir()
+	tree := filepath.Join(remoteRoot, "tree")
+	const topBytes = "TOP-LEVEL-CONTENT"
+	const nestedBytes = "NESTED-DIRECTORY-CONTENT"
+	mustWriteFile(t, filepath.Join(tree, "top.txt"), topBytes)
+	mustWriteFile(t, filepath.Join(tree, "sub", "nested.txt"), nestedBytes)
+
+	h := hostFor(srv)
+	if err := mgr.Open(OpenOptions{SessionID: "sftp", Host: h, Cols: 80, Rows: 24, TimeoutSec: 5}); err != nil {
+		t.Fatalf("open: %s", safeErr(err, h.Password))
+	}
+	defer mgr.Close("sftp")
+	client, err := mgr.Client("sftp")
+	if err != nil {
+		t.Fatalf("client: %v", err)
+	}
+
+	sm := sftpx.NewManager()
+	defer sm.CloseAll()
+
+	remoteTree := toSFTPPath(tree)
+	localDest := t.TempDir()
+	if err := sm.DownloadPaths("sftp", client, []string{remoteTree}, localDest, nil); err != nil {
+		t.Fatalf("DownloadPaths: %v", err)
+	}
+	assertFileContent(t, filepath.Join(localDest, "tree", "top.txt"), topBytes)
+	assertFileContent(t, filepath.Join(localDest, "tree", "sub", "nested.txt"), nestedBytes)
+
+	// Overwrite case: downloading again into the same destination must succeed
+	// and reproduce the same content.
+	if err := sm.DownloadPaths("sftp", client, []string{remoteTree}, localDest, nil); err != nil {
+		t.Fatalf("DownloadPaths (existing destination): %v", err)
+	}
+	assertFileContent(t, filepath.Join(localDest, "tree", "top.txt"), topBytes)
+	assertFileContent(t, filepath.Join(localDest, "tree", "sub", "nested.txt"), nestedBytes)
+}
+
+func mustWriteFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func assertFileContent(t *testing.T, path, want string) {
+	t.Helper()
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	if string(got) != want {
+		t.Errorf("%s content = %q, want %q", path, string(got), want)
+	}
 }

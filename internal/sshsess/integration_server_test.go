@@ -18,11 +18,14 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/leungbzai-png/ssh-terminal/internal/hosts"
@@ -150,25 +153,75 @@ func handleSession(newCh ssh.NewChannel) {
 	if err != nil {
 		return
 	}
-	go func() {
-		for req := range reqs {
-			switch req.Type {
-			case "pty-req", "shell", "window-change", "env":
+	// A session channel becomes either an interactive shell or an SFTP
+	// subsystem, decided by the first shell/subsystem request. pty-req etc. are
+	// acked while we wait for that decision.
+	for req := range reqs {
+		switch req.Type {
+		case "subsystem":
+			// Payload is an SSH string: 4-byte length prefix + the name.
+			name := ""
+			if len(req.Payload) > 4 {
+				name = string(req.Payload[4:])
+			}
+			if name == "sftp" {
 				if req.WantReply {
 					_ = req.Reply(true, nil)
 				}
-			default:
-				if req.WantReply {
-					_ = req.Reply(false, nil)
-				}
+				go ssh.DiscardRequests(reqs)
+				serveSFTP(ch)
+				return
+			}
+			if req.WantReply {
+				_ = req.Reply(false, nil)
+			}
+		case "shell":
+			if req.WantReply {
+				_ = req.Reply(true, nil)
+			}
+			go ssh.DiscardRequests(reqs)
+			_, _ = ch.Write([]byte("qa-shell ready\r\n"))
+			go func() {
+				_, _ = io.Copy(io.Discard, ch)
+				_ = ch.Close()
+			}()
+			return
+		case "pty-req", "window-change", "env":
+			if req.WantReply {
+				_ = req.Reply(true, nil)
+			}
+		default:
+			if req.WantReply {
+				_ = req.Reply(false, nil)
 			}
 		}
-	}()
-	_, _ = ch.Write([]byte("qa-shell ready\r\n"))
-	go func() {
-		_, _ = io.Copy(io.Discard, ch)
+	}
+}
+
+// serveSFTP runs a real pkg/sftp server over the accepted session channel,
+// serving this process's filesystem (the test's temp-dir "remote" tree). It
+// returns when the client closes the channel.
+func serveSFTP(ch ssh.Channel) {
+	server, err := sftp.NewServer(ch)
+	if err != nil {
 		_ = ch.Close()
-	}()
+		return
+	}
+	_ = server.Serve()
+	_ = server.Close()
+	_ = ch.Close()
+}
+
+// toSFTPPath converts a local absolute path into the path form the pkg/sftp
+// server expects from a client. On Windows the sftp server resolves a
+// "/C:/dir" style path back to "C:\dir"; on POSIX the absolute path is used
+// as-is.
+func toSFTPPath(localAbs string) string {
+	s := filepath.ToSlash(localAbs)
+	if runtime.GOOS == "windows" {
+		return "/" + s
+	}
+	return s
 }
 
 type directTCPIP struct {

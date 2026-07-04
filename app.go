@@ -734,6 +734,20 @@ func (a *App) SftpUploadTracked(sessionID string, localPaths []string, remoteDir
 	return err
 }
 
+// SftpDownloadPathsTracked downloads remote files/dirs into localDir (recursive
+// for directories), emitting progress on the same sftp:xfer:* events. Plural to
+// mirror SftpUploadTracked and support multi-select in the two-pane UI.
+func (a *App) SftpDownloadPathsTracked(sessionID string, remotePaths []string, localDir string) error {
+	c, err := a.ssh.Client(sessionID)
+	if err != nil {
+		return err
+	}
+	progress, done := a.xferEmitters(sessionID, "download")
+	err = a.sftp.DownloadPaths(sessionID, c, remotePaths, localDir, progress)
+	done(err)
+	return err
+}
+
 // --- Remote path bookmarks (v0.7.0) ---
 
 // ListBookmarks returns a host's remote-path bookmarks (non-secret).

@@ -4,6 +4,7 @@ package sftpx
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -307,6 +308,138 @@ func copyFileWithProgress(c *sftp.Client, localPath, remotePath string,
 			*transferred += int64(n)
 			if progress != nil {
 				progress(*transferred, total, filepath.Base(localPath))
+			}
+		}
+		if rerr == io.EOF {
+			return nil
+		}
+		if rerr != nil {
+			return rerr
+		}
+	}
+}
+
+// DownloadPaths downloads a batch of remote files and/or directories into
+// localDir. A remote file lands at localDir/<basename>; a remote directory is
+// recreated recursively under localDir/<dirname>/... Remote operations use
+// POSIX paths (via the sftp client); local materialization uses filepath with
+// filepath.FromSlash, and every target is confined to localDir (path-traversal
+// safe). Progress (if non-nil) is invoked every ~256 KiB, mirroring UploadPaths.
+func (m *Manager) DownloadPaths(
+	sessionID string, sshClient *ssh.Client,
+	remotePaths []string, localDir string,
+	progress ProgressFn,
+) error {
+	c, err := m.client(sessionID, sshClient)
+	if err != nil {
+		return err
+	}
+
+	// Phase 1: plan (compute total bytes + local targets, walking remote dirs).
+	type plan struct {
+		remotePath string
+		localPath  string
+		size       int64
+		isDir      bool
+	}
+	var plans []plan
+	var total int64
+	for _, rp := range remotePaths {
+		fi, err := c.Stat(rp)
+		if err != nil {
+			return err
+		}
+		base := path.Base(rp)
+		localRoot, err := safeLocalJoin(localDir, base)
+		if err != nil {
+			return err
+		}
+		if !fi.IsDir() {
+			plans = append(plans, plan{rp, localRoot, fi.Size(), false})
+			total += fi.Size()
+			continue
+		}
+		plans = append(plans, plan{rp, localRoot, 0, true})
+		walker := c.Walk(rp)
+		for walker.Step() {
+			if werr := walker.Err(); werr != nil {
+				return werr
+			}
+			wp := walker.Path()
+			if wp == rp {
+				continue
+			}
+			rel := strings.TrimPrefix(strings.TrimPrefix(wp, rp), "/")
+			lp, jerr := safeLocalJoin(localRoot, rel)
+			if jerr != nil {
+				return jerr
+			}
+			info := walker.Stat()
+			if info.IsDir() {
+				plans = append(plans, plan{wp, lp, 0, true})
+			} else {
+				plans = append(plans, plan{wp, lp, info.Size(), false})
+				total += info.Size()
+			}
+		}
+	}
+
+	var transferred int64
+	for _, pl := range plans {
+		if pl.isDir {
+			if err := os.MkdirAll(pl.localPath, 0o755); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(pl.localPath), 0o755); err != nil {
+			return err
+		}
+		if err := downloadFileWithProgress(c, pl.remotePath, pl.localPath, &transferred, total, progress); err != nil {
+			return err
+		}
+	}
+	if progress != nil {
+		progress(transferred, total, "")
+	}
+	return nil
+}
+
+// safeLocalJoin joins a POSIX-style relative path under base, converting it to
+// the local separator, and refuses any result that escapes base (defends
+// against ".." in server-reported names).
+func safeLocalJoin(base, rel string) (string, error) {
+	local := filepath.Join(base, filepath.FromSlash(rel))
+	within, err := filepath.Rel(base, local)
+	if err != nil || within == ".." || strings.HasPrefix(within, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("refusing unsafe download path: %q", rel)
+	}
+	return local, nil
+}
+
+func downloadFileWithProgress(c *sftp.Client, remotePath, localPath string,
+	transferred *int64, total int64, progress ProgressFn) error {
+	src, err := c.Open(remotePath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := os.Create(localPath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	buf := make([]byte, 256*1024) // 256 KiB
+	for {
+		n, rerr := src.Read(buf)
+		if n > 0 {
+			if _, werr := dst.Write(buf[:n]); werr != nil {
+				return werr
+			}
+			*transferred += int64(n)
+			if progress != nil {
+				progress(*transferred, total, path.Base(remotePath))
 			}
 		}
 		if rerr == io.EOF {
