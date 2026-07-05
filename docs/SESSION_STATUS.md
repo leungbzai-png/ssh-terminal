@@ -1,7 +1,7 @@
 # Session Status — SSH Terminal
 
 **Last updated:** 2026-07-05  
-**Updated by:** Claude Opus 4.8 (v1.1.0 SFTP two-pane — released with GUI-QA caveat)
+**Updated by:** Claude Opus 4.8 (v1.2.0 VPS Monitor Sidebar — release prep, GUI-QA pending)
 
 ---
 
@@ -9,11 +9,47 @@
 
 | Field | Value |
 |-------|-------|
-| **Latest release** | **v1.1.0 (2026-07-05)** — SFTP Two-Pane Foundation (released with GUI-QA caveat) |
+| **In progress** | **v1.2.0 — VPS Monitor Sidebar** (commits 1–5 on `main`, **not yet tagged/released**) |
+| Latest release | **v1.1.0 (2026-07-05)** — SFTP Two-Pane Foundation (released with GUI-QA caveat) |
 | Previous stable | **v1.0.0** (tag `v1.0.0`) — unchanged |
-| Git tag | `v0.4.0`–`v1.0.0` unchanged; **`v1.1.0` created** at this final commit |
+| Git tag | `v0.4.0`–`v1.1.0` unchanged; **no `v1.2.0` tag yet** |
 | Branch | `main` |
-| Previous release commit | `83be738` (v1.0.0) |
+| Latest release commit | `e36808f` (v1.1.0) |
+
+---
+
+## v1.2.0 — VPS Monitor Sidebar (RELEASE PREP 2026-07-05, GUI-QA pending)
+
+- **Scope (commits 1–5 on `main`):** an agentless, **Linux-only** VPS monitor in
+  a left-side, per-tab collapsible sidebar — CPU / memory / swap / disk `/` /
+  load / uptime with CPU & memory sparklines, polled over the existing SSH
+  connection.
+  - **commit 1** `internal/sysmon`: pure parsers (`/proc/stat`, `/proc/meminfo`,
+    `df -P /`, `/proc/loadavg`, `/proc/uptime`, `uname -s`) + CPU-delta `Manager`,
+    unit-tested; the fixed `Command` string.
+  - **commit 2** `sshsess.Manager.Run` (one-off exec on a **separate** SSH
+    channel, never the shell PTY) + `App.MonitorSample` bridge + `sysmon.Manager`
+    on `App` (CPU delta) + `Forget` in `CloseSession`; `MonitorSnapshot` types;
+    build-tagged `Manager.Run` integration test (exec + `Run → ParseAll`).
+  - **commit 3** `MonitorSidebar.vue` + `Sparkline.vue` UI shell and all states;
+    left grid column in `PaneView`; per-tab `showMonitor` toggle.
+  - **commit 4** live per-tab polling with an `inFlight` overlap guard and a
+    post-await tab/connection re-check; store-backed per-tab state
+    (interval/snapshot/error/trend), cleaned in `closeTab`; timer cleared on
+    unmount/tab-change/interval-change; disconnect resets the tab's reading.
+  - **commit 5** version bump 1.1.0 → 1.2.0, docs, and the manual GUI QA
+    checklist; automated release gate.
+- **Automated gate: green** — `go test ./...`, `go vet ./...`, `go mod verify`,
+  `go test -tags=integration ./...` (incl. `Manager.Run`), `npm run build`,
+  `build-windows.bat`. Backend parser/CPU-delta and the exec pipeline are covered.
+- **⚠ Manual VPS monitor GUI QA: NOT executed** (`docs/VPS_MONITOR_QA.md`, all
+  cases ☐/NOT RUN). Live panel behavior (rendering, sparklines, interval
+  switching, disconnect/unsupported states, timer cleanup) is **not** human-
+  verified. Treat as caveated until user-tested — same posture as v1.1.0/v1.0.0.
+- **Not tagged/released/pushed.** `v1.0.0` / `v1.1.0` tags/releases untouched.
+- **Security:** read-only, agentless; fixed command with no user/session
+  interpolation; samples in memory only, **never persisted**; nothing sent
+  anywhere but the local UI. No secret-storage changes.
 
 ---
 

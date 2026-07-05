@@ -222,6 +222,32 @@ tests). Explicitly out of scope for v1.1.0: transfer queue,
 multi-threaded/resumable transfer, background transfer manager, multi-select,
 persisted conflict strategy, and any file editor. v1.0.0 tag/release unchanged.
 
+### v1.2.0 — VPS Monitor Sidebar (RELEASE PREP 2026-07-05, GUI-QA pending)
+- [x] `internal/sysmon` parser package + CPU-delta manager (unit-tested)
+- [x] `sshsess.Manager.Run` one-off exec on a separate SSH channel; `MonitorSample`
+      Wails bridge (`MonitorSnapshot`) with backend-side CPU delta; build-tagged
+      `Manager.Run` integration test
+- [x] Left-side per-tab collapsible `MonitorSidebar.vue` + `Sparkline.vue`
+- [x] Live per-tab polling (2/5/10s, default 5s), store-backed per-tab state
+      (interval/snapshot/error/trend), timer cleanup, no background monitoring
+- [x] Version bumped to 1.2.0; docs updated; automated gate green
+- [ ] **Manual VPS monitor GUI QA** (`docs/VPS_MONITOR_QA.md`) — **NOT executed**
+
+**Scope:** agentless, **Linux-only** monitor over the existing SSH session —
+CPU / memory / swap / disk `/` / load / uptime + CPU & memory sparklines. One
+compact fixed command per sample on a separate channel (no terminal
+interference, no injection surface); samples are in-memory only and never
+persisted. **Explicitly out of scope:** remote agent/daemon, sudo, remote
+install, multi-server dashboard, historical DB, Prometheus/Grafana, alerting,
+process/top clone, per-NIC network graph, non-Linux remote hosts, and any
+metrics persistence. After v1.2.0 the project enters a longer real-world
+testing / bugfix phase.
+
+**Status:** release prep complete on 2026-07-05 with the automated gate green;
+the manual monitor **GUI** QA is authored but **NOT executed** (same
+release-with-caveat posture as v1.1.0/v1.0.0). v1.0.0 / v1.1.0 tags/releases
+unchanged.
+
 ### Future 1.x — maintenance / scoped enhancements
 - Bug fixes, small UX improvements, and carefully scoped enhancements only.
 - macOS build support (item 18) remains post-1.0 and unscheduled.

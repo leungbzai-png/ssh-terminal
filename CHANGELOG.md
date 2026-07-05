@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-07-05
+
+> **Release caveat (read this):** the VPS monitor is **code-complete** and its
+> **automated** tests pass — the `internal/sysmon` parser/CPU-delta unit tests
+> and a build-tagged `internal/sshsess` integration test that drives
+> `Manager.Run` end to end (exec round-trip + `Run → sysmon.ParseAll` pipeline).
+> However, the **manual VPS monitor GUI QA** (`docs/VPS_MONITOR_QA.md`) was
+> **NOT executed** before this release — those cases remain NOT RUN. The live
+> panel behavior (rendering, sparklines, interval switching, disconnect/
+> unsupported states, timer cleanup) should be treated as **release-caveated
+> until user-tested**, mirroring the posture v1.1.0/v1.0.0 shipped with. Open
+> GUI-QA items from v1.1.0 (SFTP two-pane) and v1.0.0 (auto-reconnect) also
+> remain unexecuted.
+
+### Added — VPS Monitor Sidebar
+- **Agentless, Linux-only VPS monitor** in a left-side, per-tab collapsible
+  sidebar. While a tab is connected, it polls lightweight system metrics over
+  the existing SSH connection and shows **CPU %**, **memory %**, **swap %** (when
+  present), **disk usage for `/`**, **load average** (1/5/15m), and **uptime**,
+  with real-time **sparklines** for CPU and memory.
+- **One compact command per sample.** A single fixed command (`sysmon.Command`,
+  no user/session interpolation) reads `/proc/stat`, `/proc/meminfo`,
+  `/proc/loadavg`, `/proc/uptime`, `df -P /`, and `uname -s` in one round trip on
+  a **separate SSH channel** (`sshsess.Manager.Run`), so monitoring never
+  disturbs the interactive shell. CPU usage is a backend-computed delta between
+  successive `/proc/stat` samples (`sysmon.Manager`, per session).
+- **Per-tab controls.** Polling interval option (**2s / 5s / 10s**, default 5s)
+  and an enable/disable toggle per tab (the panel doubles as the switch —
+  monitoring runs only while the panel is shown).
+- **Clear states.** Distinct UI for disconnected/no-session, unsupported host
+  (non-Linux), loading, and error, separate from live metrics.
+- New backend: `internal/sysmon` (parsers + CPU-delta manager),
+  `sshsess.Manager.Run`, and the `MonitorSample` Wails bridge
+  (`MonitorSnapshot`).
+
+### Not in scope for v1.2.0
+- No remote agent/daemon, no sudo, no remote install; no multi-server dashboard,
+  historical database, Prometheus/Grafana, external monitoring API, or alerting;
+  no process list/top clone, no per-interface network graph; no Windows/macOS/BSD
+  **remote** host support; no metrics persistence.
+
+### Security
+- Monitoring is read-only and **agentless**: a fixed command with no
+  session/user-derived interpolation (no command-injection surface), run only on
+  a connected session. All samples (snapshots + sparkline history) live **in
+  memory only and are never persisted** to disk — no `session.json` /
+  `bookmarks.json` / secret-storage changes. Nothing is sent anywhere except the
+  local UI.
+
 ## [1.1.0] - 2026-07-05
 
 > **Release caveat (read this):** the SFTP two-pane feature is **code-complete**

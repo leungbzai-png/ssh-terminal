@@ -12,6 +12,8 @@ and a Vue 3 + TypeScript frontend. All user data lives next to the exe in `data/
 encrypted with AES-256-GCM. The app has zero external network calls beyond user-initiated SSH/SFTP.
 It is personal-developer-scale: no database, no server, no tests (yet). CI via GitHub Actions added in v0.3.0.
 
+**In progress: v1.2.0 — VPS Monitor Sidebar** (release prep on `main`, **not yet tagged/released**). An agentless, **Linux-only** left-side per-tab monitor that polls CPU / memory / swap / disk `/` / load / uptime over the existing SSH connection and draws CPU & memory sparklines. Backend: `internal/sysmon` (pure parsers for `/proc/stat`, `/proc/meminfo`, `df -P /`, `/proc/loadavg`, `/proc/uptime`, `uname -s` + a per-session CPU-delta `Manager`), `sshsess.Manager.Run` (one-off exec on a **separate** SSH channel — never the shell PTY), and the `App.MonitorSample` bridge (`MonitorSnapshot`). Frontend: `MonitorSidebar.vue` + `Sparkline.vue`, per-tab `showMonitor` toggle, and store-backed per-tab monitor state (interval/snapshot/error/trend, in-memory only). The automated gate (incl. a build-tagged `Manager.Run` integration test) is green, but the **manual VPS monitor GUI QA (`docs/VPS_MONITOR_QA.md`) was NOT executed** — treat live panel behavior as caveated until user-tested. See "v1.2.0 Changes to Be Aware Of". **Do not mark any VPS_MONITOR_QA case PASS without a real human run.**
+
 **Latest release: v1.1.0** (2026-07-05 — tag `v1.1.0`, GitHub Latest) — **SFTP Two-Pane Foundation**, released **with a documented GUI-QA caveat**. It adds a read-only local pane (`internal/localfs`: List/Home/Roots/Parent/Exists) beside the existing remote pane, recursive remote→local download (`sftpx.DownloadPaths`), and two-pane upload/download wiring with overwrite confirmation (`SftpExists`/`LocalExists`). Frontend: `SftpPane.vue` (local) + `SftpPanel.vue` (container, remote logic still inline); local cwd is in-memory only (never persisted). Its automated unit + build-tagged integration gate is green, but the **manual SFTP two-pane GUI QA (`docs/SFTP_TWO_PANE_QA.md`) was NOT executed** before release — the user chose to release with that caveat, so the GUI flows are caveated until user-tested. **Do not mark any SFTP_TWO_PANE_QA case PASS without a real human run.** Previous stable is **v1.0.0** (unchanged). Prior tags v0.4.0–v1.0.0 unchanged; **no separate v0.6.0 or v0.8.0 tag/Release**. Advanced SSH lives in `internal/hosts/advanced.go` (non-secret config) and `internal/sshsess/{manager,tunnel,socks,diag}.go`; secret scrubbing in `internal/redact`. ProxyJump is single-level; a manual bastion is key-only (password bastions must reference a saved host).
 
 **After v1.0.0 the project is in a 1.x maintenance phase.** Do NOT auto-start a new feature track (no v1.1.0 features, no large refactors, no SFTP dual-pane rewrite, no editor/cloud-sync/plugin/account/telemetry/auto-updater). Future work should be small bugfix / patch releases (e.g. v1.0.1) and only on explicit direction. Every release must pass the full gate: `go test ./...` · `go vet ./...` · `go mod verify` · `go test -tags=integration ./...` · `npm run build` · `build-windows.bat`. Never commit `data/`, secrets, `qa-local/`, `build/`, `frontend/dist/assets`, release zips, or logs. **Open QA item:** GUI auto-reconnect UX (cap/cancel/discriminator) has not been separately human-tested — the backend close signal is covered by the integration tests only. A ready-to-run manual checklist exists at `docs/GUI_AUTO_RECONNECT_QA.md` (authored 2026-07-04, not yet human-executed; no case marked PASS). Execute it on a throwaway host before relying on the reconnect UX.
@@ -140,6 +142,56 @@ construct paths manually.
 **Font size shortcuts.** Handled in `Terminal.vue:onTermKey` (Ctrl+= / Ctrl+- / Ctrl+0) → `settings` store `bumpFontSize`/`resetFontSize` (clamped 8–32, persisted). `applySettings` already reacts to the deep settings watch, so all terminals update.
 
 **New persisted files are non-secret.** `data/session.json` and `data/bookmarks.json` join `settings.json` as plaintext-allowed (host references / UI state only). Tests assert they contain no secret/PEM markers. If you add a field, put it on the allowed or forbidden list and add a test.
+
+## v1.2.0 Changes to Be Aware Of (VPS Monitor Sidebar)
+
+**`internal/sysmon` — pure parser package (no SSH, no I/O).** Parsers for
+`/proc/stat` (`ParseStat` → `CPUCounters{Total,Idle}`; Total sums all cpu fields,
+Idle = idle+iowait), `/proc/meminfo` (`ParseMeminfo`; MemTotal/MemAvailable
+**required** → error if missing, swap optional), `df -P /` (`ParseDf`; uses the
+last data line and anchors on the `NN%` Capacity column so spaced filesystem
+names still parse), `/proc/loadavg`, `/proc/uptime`, and `uname -s`
+(`ParseUname` → supported only when `== "Linux"`). `ParseAll(raw)` splits the
+combined output on `@@OS@@/@@STAT@@/@@MEM@@/@@LOAD@@/@@UP@@/@@DF@@` markers and
+**degrades gracefully** (non-Linux returns `Supported=false` early; missing
+sections stay zero; never panics). It deliberately leaves `CPUPercent=0 /
+CPUValid=false` — CPU needs a delta. `StatCounters(raw)` extracts the counters to
+feed the delta. `Manager` (per-session `map[sessionID]CPUCounters`) computes
+`100*(1 - idleDelta/totalDelta)` in `Sample`; first sample / zero-delta / counter
+reset all return `valid=false` while updating the baseline. Fully unit-tested
+(`sysmon_test.go`), no runtime dependencies.
+
+**`sshsess.Manager.Run(sessionID, cmd)` — one-off exec on a SEPARATE channel.**
+Grabs the session's `*ssh.Client` and opens a NEW channel via `client.NewSession()`
++ `CombinedOutput` (mirrors `DeployPublicKeyToHost`/SFTP). It never touches the
+interactive shell PTY, so monitoring cannot disturb the terminal, and it runs
+concurrently over the same multiplexed connection. A non-zero remote exit still
+returns usable stdout (only a missing session / transport error is fatal). Add
+new one-off remote commands here, not through the shell stdin.
+
+**`App.MonitorSample(sessionID)` bridge + `sysmon.Manager` on `App`.** Runs the
+fixed `sysmon.Command` (a constant string — **no session/user interpolation, no
+injection surface**), parses with `ParseAll`, and for Linux hosts computes the
+CPU delta via the `App.sysmon` manager. **Disconnected → error** (UI shows
+no-session); **non-Linux → successful `MonitorSnapshot{Supported:false}`** (UI
+shows unsupported) — keep these two distinct. `CloseSession` calls
+`a.sysmon.Forget(sessionID)` alongside `a.sftp.Close`. Build-tagged integration
+test `TestIntegrationManagerRun` (exec handler added to the in-process test
+server) covers the round-trip and `Run → ParseAll`.
+
+**Frontend: `MonitorSidebar.vue` owns the poll timer; state lives in the store.**
+The sidebar is the left grid column in `PaneView` (`.split` uses
+`data-monitor`/`data-sftp` for all on/off combos; toggling it resizes the terminal
+element, whose existing `ResizeObserver` refits xterm). A single `setInterval`
+calls `MonitorSample` on the per-tab interval (2/5/10s); an `inFlight` guard
+prevents overlap and the tab id / connection are re-checked after the `await`.
+The panel instance is **reused across tab switches** (like `SftpPanel`), so
+per-tab monitor state (interval / snapshot / error / CPU+mem trend, capped at 40)
+lives in the `sessions` store keyed by tab id and is cleared in `closeTab`;
+`showMonitor` doubles as the per-tab enable/disable. **All monitor data is
+in-memory only — never persisted** (no new `data/` file). Timer clears on unmount
+/ tab-change / interval-change; disconnect resets the tab's reading. Only the
+active tab's sidebar is mounted, so there is no background polling.
 
 ## Known Gotchas
 
