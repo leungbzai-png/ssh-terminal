@@ -1,7 +1,7 @@
 # Session Status — SSH Terminal
 
 **Last updated:** 2026-07-05  
-**Updated by:** Claude Opus 4.8 (v1.2.0 VPS Monitor Sidebar — release prep, GUI-QA pending)
+**Updated by:** Claude Opus 4.8 (v1.2.1 Resizable Workspace Splitters — release prep, GUI-QA pending)
 
 ---
 
@@ -9,12 +9,40 @@
 
 | Field | Value |
 |-------|-------|
-| **In progress** | **v1.2.0 — VPS Monitor Sidebar** (commits 1–5 on `main`, **not yet tagged/released**) |
-| Latest release | **v1.1.0 (2026-07-05)** — SFTP Two-Pane Foundation (released with GUI-QA caveat) |
-| Previous stable | **v1.0.0** (tag `v1.0.0`) — unchanged |
-| Git tag | `v0.4.0`–`v1.1.0` unchanged; **no `v1.2.0` tag yet** |
+| **In progress** | **v1.2.1 — Resizable Workspace Splitters** (UI-polish patch, release prep on `main`) |
+| Latest release | **v1.2.0 (2026-07-05)** — VPS Monitor Sidebar (released with GUI-QA caveat) |
+| Previous | **v1.1.0** (SFTP Two-Pane) / **v1.0.0** (Stable) — unchanged |
+| Git tag | `v0.4.0`–`v1.2.0` unchanged; **v1.2.1 tag pending this release** |
 | Branch | `main` |
-| Latest release commit | `e36808f` (v1.1.0) |
+| Latest release commit | `65c09f2` (v1.2.0) |
+
+---
+
+## v1.2.1 — Resizable Workspace Splitters (RELEASE PREP 2026-07-05, GUI-QA pending)
+
+- **Scope (UI-polish patch):** draggable splitters between the VPS monitor ↔
+  terminal and terminal ↔ SFTP panel, replacing the fixed/clamped column widths.
+  - `frontend/src/components/PaneView.vue`: inline `gridTemplateColumns` from
+    user-set widths; a splitter renders only for an open panel; rAF-throttled
+    pointer drag; double-click resets a panel to default; widths clamp + scale
+    down on narrow windows to keep the terminal usable and avoid overflow.
+    Terminal reflow uses the terminal's existing `ResizeObserver` (no manual fit).
+  - `frontend/src/composables/useWorkspaceLayout.ts`: module-singleton persisting
+    only two non-secret integer px widths to `localStorage`
+    (`ssh-terminal.monitorWidth` / `ssh-terminal.sftpWidth`).
+  - `fix(ui): add resizable workspace splitters` (`d1a05e1`) + this release-prep
+    (version bump 1.2.0 → 1.2.1 + docs).
+- **Automated gate: green** — `go test ./...`, `go vet ./...`, `go mod verify`,
+  `go test -tags=integration ./...` (incl. `TestIntegrationManagerRun`),
+  `npm run build`, `build-windows.bat`.
+- **⚠ Manual Workspace Resize GUI QA: NOT executed** (`docs/WORKSPACE_RESIZE_QA.md`,
+  all cases ☐/NOT RUN). Drag behavior, xterm reflow, dblclick reset, and
+  persistence-across-restart are **not** human-verified. Caveated until
+  user-tested — same posture as v1.2.0/v1.1.0/v1.0.0, whose GUI-QA items remain
+  open too.
+- **Security:** UI-only; no SSH/secret-storage change; `localStorage` holds only
+  integer px (no paths/hosts/creds/samples/listings); nothing persisted to `data/`.
+- v1.0.0 / v1.1.0 / v1.2.0 tags/releases untouched.
 
 ---
 

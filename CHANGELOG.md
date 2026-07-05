@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-07-05
+
+> **Release caveat (read this):** this UI-polish patch is **code-complete** and
+> its **automated** gate passes (Go unit + build-tagged integration tests,
+> frontend typecheck/build, Windows build), but the **manual Workspace Resize
+> GUI QA** (`docs/WORKSPACE_RESIZE_QA.md`) was **NOT executed** before release —
+> those cases remain NOT RUN. The resize **GUI** behavior (dragging, xterm
+> reflow, persistence) should be treated as **release-caveated until
+> user-tested**, mirroring v1.2.0/v1.1.0/v1.0.0. Those earlier GUI-QA items
+> (VPS monitor, SFTP two-pane, auto-reconnect) also remain open.
+
+### Changed — Resizable Workspace Splitters (UI polish)
+- **Draggable splitters** between the **VPS monitor ↔ terminal** and the
+  **terminal ↔ SFTP** panel, replacing the previous fixed/clamped column widths.
+- **Monitor and SFTP panel widths are adjustable** by dragging; a splitter only
+  appears for a panel that is open (a closed panel reclaims its space for the
+  terminal).
+- **Double-click a splitter resets** that panel to its default width.
+- Widths clamp to safe min/max and **scale down on narrow windows** so the
+  terminal keeps a usable minimum and the layout does not overflow.
+- **Terminal reflows** after a resize through the terminal's existing
+  `ResizeObserver` (no manual fit plumbing); drag is `requestAnimationFrame`-
+  throttled.
+
+### Persistence
+- Width preferences persist **locally** via non-secret `localStorage` **integer
+  pixel values only** (`ssh-terminal.monitorWidth`, `ssh-terminal.sftpWidth`).
+  No local/remote paths, hostnames, IPs, usernames, credentials, monitor
+  samples, or SFTP listings are stored. No `session.json` / `bookmarks.json` /
+  secret-storage changes.
+
+### Not changed
+- No monitor metrics, no SFTP transfer logic, no SSH/security/storage model
+  changes, no telemetry, and no release-artifact rules changed (Windows portable
+  zip remains exe + README + LICENSE only).
+
 ## [1.2.0] - 2026-07-05
 
 > **Release caveat (read this):** the VPS monitor is **code-complete** and its

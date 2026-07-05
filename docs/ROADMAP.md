@@ -248,6 +248,22 @@ the manual monitor **GUI** QA is authored but **NOT executed** (same
 release-with-caveat posture as v1.1.0/v1.0.0). v1.0.0 / v1.1.0 tags/releases
 unchanged.
 
+### v1.2.1 — Resizable Workspace Splitters (UI polish patch, GUI-QA pending)
+- [x] Draggable splitters for Monitor ↔ Terminal and Terminal ↔ SFTP
+      (`PaneView.vue` inline grid; splitter renders only for an open panel)
+- [x] Adjustable monitor/SFTP widths, clamped + scaled to protect the terminal
+      minimum and avoid overflow; double-click splitter resets to default
+- [x] Widths persist locally via non-secret `localStorage` integer px
+      (`useWorkspaceLayout` composable); terminal reflow via existing
+      `ResizeObserver`
+- [x] Version bumped to 1.2.1; docs updated; automated gate green
+- [ ] **Manual Workspace Resize GUI QA** (`docs/WORKSPACE_RESIZE_QA.md`) — **NOT executed**
+
+**Scope:** contained UI-polish patch on the v1.2.0 workspace. No monitor metric,
+SFTP behavior, SSH/security/storage-model, or release-artifact-rule changes.
+Released **with a documented GUI-QA-pending caveat** (same posture as
+v1.2.0/v1.1.0/v1.0.0). v1.0.0 / v1.1.0 / v1.2.0 tags/releases unchanged.
+
 ### Future 1.x — maintenance / scoped enhancements
 - Bug fixes, small UX improvements, and carefully scoped enhancements only.
 - macOS build support (item 18) remains post-1.0 and unscheduled.
