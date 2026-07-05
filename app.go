@@ -24,6 +24,7 @@ import (
 	"github.com/leungbzai-png/ssh-terminal/internal/sftpx"
 	"github.com/leungbzai-png/ssh-terminal/internal/sshconfig"
 	"github.com/leungbzai-png/ssh-terminal/internal/sshsess"
+	"github.com/leungbzai-png/ssh-terminal/internal/sysmon"
 )
 
 // App is the bridge between Wails (Go) and the Vue frontend.
@@ -32,6 +33,10 @@ type App struct {
 
 	ssh  *sshsess.Manager
 	sftp *sftpx.Manager
+
+	// sysmon computes the CPU-usage delta between successive monitor samples,
+	// keyed by session id. It holds no secrets and persists nothing.
+	sysmon *sysmon.Manager
 
 	pendingMu      sync.Mutex
 	pendingPrompts map[string]chan bool
@@ -44,6 +49,7 @@ type App struct {
 func NewApp() *App {
 	return &App{
 		sftp:           sftpx.NewManager(),
+		sysmon:         sysmon.NewManager(),
 		pendingPrompts: map[string]chan bool{},
 	}
 }
@@ -576,6 +582,7 @@ func (a *App) ResizeSession(sessionID string, cols, rows int) error {
 
 func (a *App) CloseSession(sessionID string) error {
 	a.sftp.Close(sessionID)
+	a.sysmon.Forget(sessionID)
 	return a.ssh.Close(sessionID)
 }
 
@@ -864,6 +871,35 @@ func (a *App) LocalRoots() ([]string, error) {
 // (in which case the frontend should show the roots list instead).
 func (a *App) LocalParent(dir string) (string, bool) {
 	return localfs.Parent(dir)
+}
+
+// --- VPS Monitor (v1.2.0) ---
+//
+// Agentless, Linux-only, read-only monitoring over the existing SSH connection.
+// MonitorSample runs one lightweight poll on a SEPARATE SSH channel (never the
+// interactive shell), so it cannot disturb the terminal. The command is a fixed
+// string (sysmon.Command) with no session- or user-derived interpolation, so it
+// carries no command-injection surface. Nothing is persisted: samples live only
+// in the returned value and the in-memory CPU-delta baseline.
+
+// MonitorSample polls the given session for a system snapshot. CPU usage is
+// computed as a delta against this session's previous sample, so the first call
+// returns CPUValid=false ("measuring"); subsequent calls report a usage percent.
+// A disconnected session returns an error (the UI shows a no-session state); a
+// non-Linux host returns a successful snapshot with Supported=false (the UI
+// shows an unsupported state).
+func (a *App) MonitorSample(sessionID string) (sysmon.Snapshot, error) {
+	raw, err := a.ssh.Run(sessionID, sysmon.Command)
+	if err != nil {
+		return sysmon.Snapshot{}, err
+	}
+	snap := sysmon.ParseAll(raw)
+	if snap.Supported {
+		if counters, ok := sysmon.StatCounters(raw); ok {
+			snap.CPUPercent, snap.CPUValid = a.sysmon.Sample(sessionID, counters)
+		}
+	}
+	return snap, nil
 }
 
 func (a *App) PickFileToUpload() (string, error) {

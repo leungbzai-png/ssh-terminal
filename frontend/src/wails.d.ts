@@ -53,6 +53,11 @@ declare global {
           LocalParent: (dir: string) => Promise<[string, boolean]>;
           LocalExists: (path: string) => Promise<boolean>;
 
+          // VPS monitor (v1.2.0): one agentless, read-only Linux system poll over
+          // the existing SSH connection. Rejects when the session is not connected;
+          // returns supported=false for non-Linux hosts.
+          MonitorSample: (sessionID: string) => Promise<MonitorSnapshot>;
+
           ListKeys: () => Promise<ManagedKey[]>;
           GenerateKey: (name: string, comment: string, keyType: string, rsaBits: number, passphrase: string) => Promise<ManagedKey>;
           ImportPrivateKey: (name: string, comment: string, keyPath: string, passphrase: string) => Promise<ManagedKey>;
@@ -241,6 +246,40 @@ export interface HostRecord {
   note?: string;
   advanced?: AdvancedSSH;
   updatedAt?: number;
+}
+
+// --- VPS Monitor (v1.2.0): non-secret, never persisted ---
+
+export interface MonitorDiskUsage {
+  filesystem: string;
+  sizeKB: number;
+  usedKB: number;
+  availKB: number;
+  usePercent: number;
+}
+
+export interface MonitorLoadAvg {
+  one: number;
+  five: number;
+  fifteen: number;
+}
+
+// Snapshot returned by MonitorSample. cpuPercent is only meaningful when
+// cpuValid is true (false on the first sample of a session — "measuring").
+// swapPercent is only meaningful when swapPresent is true. When supported is
+// false the host is not Linux and the metric fields are zero.
+export interface MonitorSnapshot {
+  os: string;
+  supported: boolean;
+  cpuPercent: number;
+  cpuValid: boolean;
+  memPercent: number;
+  swapPercent: number;
+  swapPresent: boolean;
+  disk: MonitorDiskUsage;
+  load: MonitorLoadAvg;
+  uptimeSec: number;
+  sampledAt: number;
 }
 
 export interface TextPreview {

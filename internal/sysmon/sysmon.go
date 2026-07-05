@@ -304,6 +304,20 @@ func ParseAll(raw []byte) Snapshot {
 	return snap
 }
 
+// StatCounters extracts the aggregate CPU counters from combined Command output
+// so the caller can feed them to Manager.Sample for a CPU-usage delta. ok is
+// false when the @@STAT@@ section is missing or malformed, in which case CPU
+// usage is simply unavailable for this sample (the rest of the snapshot is
+// still valid). It reuses the same section split as ParseAll.
+func StatCounters(raw []byte) (CPUCounters, bool) {
+	secs := splitSections(raw)
+	c, err := ParseStat([]byte(secs[markerStat]))
+	if err != nil {
+		return CPUCounters{}, false
+	}
+	return c, true
+}
+
 // splitSections groups the combined command output by marker. Each marker sits
 // on its own line; every line after it (until the next marker) belongs to that
 // section. Content before the first marker is discarded.

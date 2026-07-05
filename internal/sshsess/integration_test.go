@@ -29,6 +29,7 @@ import (
 	"github.com/leungbzai-png/ssh-terminal/internal/hosts"
 	"github.com/leungbzai-png/ssh-terminal/internal/redact"
 	"github.com/leungbzai-png/ssh-terminal/internal/sftpx"
+	"github.com/leungbzai-png/ssh-terminal/internal/sysmon"
 )
 
 // resetKnownHosts removes the per-process known_hosts file so every connection
@@ -475,6 +476,57 @@ func TestIntegrationSFTPDownloadPaths(t *testing.T) {
 	}
 	assertFileContent(t, filepath.Join(localDest, "tree", "top.txt"), topBytes)
 	assertFileContent(t, filepath.Join(localDest, "tree", "sub", "nested.txt"), nestedBytes)
+}
+
+// TestIntegrationManagerRun drives Manager.Run against the in-process SSH server
+// on a SEPARATE exec channel (not the interactive shell), covering both the raw
+// exec round-trip and the monitor pipeline (Run -> sysmon.ParseAll). It also
+// confirms Run errors cleanly once the session is closed. Localhost-only; no real
+// server, credential, or /proc is used.
+func TestIntegrationManagerRun(t *testing.T) {
+	resetKnownHosts(t)
+	srv := newTestServer(t)
+	mgr := newManagerT(nil, nil)
+
+	h := hostFor(srv)
+	if err := mgr.Open(OpenOptions{SessionID: "run", Host: h, Cols: 80, Rows: 24, TimeoutSec: 5}); err != nil {
+		t.Fatalf("open: %s", safeErr(err, h.Password))
+	}
+
+	// Arbitrary command: output is echoed back verbatim by the test server.
+	out, err := mgr.Run("run", "echo hello")
+	if err != nil {
+		t.Fatalf("Run(echo): %v", err)
+	}
+	if got := string(out); indexOf(got, "exec:echo hello") < 0 {
+		t.Fatalf("Run(echo) output = %q, want it to contain %q", got, "exec:echo hello")
+	}
+
+	// Monitor command: the server returns a realistic fixture; the whole
+	// Run -> ParseAll pipeline must yield a supported Linux snapshot.
+	raw, err := mgr.Run("run", sysmon.Command)
+	if err != nil {
+		t.Fatalf("Run(monitor): %v", err)
+	}
+	snap := sysmon.ParseAll(raw)
+	if !snap.Supported || snap.OS != "Linux" {
+		t.Fatalf("monitor snapshot: supported=%v os=%q, want true/Linux", snap.Supported, snap.OS)
+	}
+	if snap.Disk.UsePercent != 25 || snap.Load.One != 0.10 {
+		t.Fatalf("monitor snapshot metrics off: disk%%=%v load1=%v", snap.Disk.UsePercent, snap.Load.One)
+	}
+	// CPU counters must be extractable to feed the delta manager.
+	if _, ok := sysmon.StatCounters(raw); !ok {
+		t.Fatalf("StatCounters from live monitor output: ok=false, want true")
+	}
+
+	// After close, Run must fail with "session not found" rather than hang.
+	if err := mgr.Close("run"); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if _, err := mgr.Run("run", "echo nope"); err == nil {
+		t.Fatal("Run after close: expected error, got nil")
+	}
 }
 
 func mustWriteFile(t *testing.T, path, content string) {

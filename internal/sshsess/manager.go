@@ -406,6 +406,38 @@ func (m *Manager) Write(sessionID string, data []byte) error {
 	return err
 }
 
+// Run executes a one-off command on the session's SSH connection using a
+// separate channel (via client.NewSession), NOT the interactive shell PTY, so
+// it cannot inject into or disturb the terminal. It returns the command's
+// combined stdout+stderr. A non-zero remote exit status is not treated as a
+// hard failure: the collected output is still returned (a monitor command may
+// exit non-zero if one sub-command fails while earlier output is valid). Only a
+// missing session or a channel/transport error yields a non-nil error.
+func (m *Manager) Run(sessionID, cmd string) ([]byte, error) {
+	m.mu.RLock()
+	s, ok := m.sessions[sessionID]
+	m.mu.RUnlock()
+	if !ok {
+		return nil, errors.New("session not found")
+	}
+	sess, err := s.client.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+	out, err := sess.CombinedOutput(cmd)
+	if err != nil {
+		// Non-zero exit still carries usable stdout; surface the bytes and let
+		// the caller parse what it can. A transport/channel error returns as-is.
+		var ee *ssh.ExitError
+		if errors.As(err, &ee) {
+			return out, nil
+		}
+		return out, err
+	}
+	return out, nil
+}
+
 // Resize forwards terminal size changes to the remote PTY.
 func (m *Manager) Resize(sessionID string, cols, rows int) error {
 	m.mu.RLock()

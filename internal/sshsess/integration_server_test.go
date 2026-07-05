@@ -186,6 +186,22 @@ func handleSession(newCh ssh.NewChannel) {
 				_ = ch.Close()
 			}()
 			return
+		case "exec":
+			// One-off command execution (used by Manager.Run for monitoring).
+			// Payload is an SSH string: 4-byte length prefix + the command.
+			if req.WantReply {
+				_ = req.Reply(true, nil)
+			}
+			go ssh.DiscardRequests(reqs)
+			cmd := ""
+			if len(req.Payload) > 4 {
+				cmd = string(req.Payload[4:])
+			}
+			_, _ = ch.Write([]byte(execResponse(cmd)))
+			// Report a clean exit so CombinedOutput returns no ExitError.
+			_, _ = ch.SendRequest("exit-status", false, ssh.Marshal(struct{ Code uint32 }{0}))
+			_ = ch.Close()
+			return
 		case "pty-req", "window-change", "env":
 			if req.WantReply {
 				_ = req.Reply(true, nil)
@@ -196,6 +212,26 @@ func handleSession(newCh ssh.NewChannel) {
 			}
 		}
 	}
+}
+
+// monitorFixture is a realistic combined-output response for the sysmon monitor
+// command, used to drive Manager.Run end to end without a real /proc. It mirrors
+// the @@marker@@ section format sysmon.ParseAll expects.
+const monitorFixture = "@@OS@@\nLinux\n" +
+	"@@STAT@@\ncpu  100 10 50 8000 40 5 5 0\n" +
+	"@@MEM@@\nMemTotal:       16000000 kB\nMemAvailable:    8000000 kB\nSwapTotal:       4000000 kB\nSwapFree:        3000000 kB\n" +
+	"@@LOAD@@\n0.10 0.20 0.30 1/100 2000\n" +
+	"@@UP@@\n54321.00 98765.00\n" +
+	"@@DF@@\nFilesystem     1024-blocks     Used Available Capacity Mounted on\n/dev/sda1         40000000 10000000  30000000      25% /\n"
+
+// execResponse returns the canned stdout for a one-off exec'd command. A monitor
+// poll (identified by its @@OS@@ marker) gets the monitorFixture; anything else
+// is echoed back so a Run test can assert round-tripping.
+func execResponse(cmd string) string {
+	if indexOf(cmd, "@@OS@@") >= 0 {
+		return monitorFixture
+	}
+	return "exec:" + cmd + "\n"
 }
 
 // serveSFTP runs a real pkg/sftp server over the accepted session channel,

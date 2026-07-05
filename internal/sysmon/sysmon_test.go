@@ -253,6 +253,25 @@ func TestCommandContainsAllMarkers(t *testing.T) {
 	}
 }
 
+func TestStatCountersFromFullFixture(t *testing.T) {
+	c, ok := StatCounters([]byte(fullLinuxFixture))
+	if !ok {
+		t.Fatal("StatCounters: ok=false, want true")
+	}
+	// cpu  100 10 50 8000 40 5 5 0 -> Total 8210, Idle 8040 (idle+iowait)
+	if c.Total != 8210 || c.Idle != 8040 {
+		t.Fatalf("counters: got total=%d idle=%d, want 8210/8040", c.Total, c.Idle)
+	}
+}
+
+func TestStatCountersMissingSection(t *testing.T) {
+	// Linux fixture with an empty @@STAT@@ section -> ok=false, snapshot still fine.
+	in := "@@OS@@\nLinux\n@@STAT@@\n@@MEM@@\n@@LOAD@@\n@@UP@@\n@@DF@@\n"
+	if _, ok := StatCounters([]byte(in)); ok {
+		t.Fatal("StatCounters with empty STAT: ok=true, want false")
+	}
+}
+
 func TestManagerFirstSampleInvalid(t *testing.T) {
 	m := NewManager()
 	_, valid := m.Sample("s1", CPUCounters{Total: 1000, Idle: 800})
