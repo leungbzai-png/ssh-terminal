@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { HostRecord, QuickConnectParams } from "../wails.d";
+import type { HostRecord, QuickConnectParams, MonitorSnapshot } from "../wails.d";
 
 export interface TabSession {
   id: string;
@@ -43,6 +43,44 @@ export const useSessions = defineStore("sessions", () => {
   // Quick Connect ephemeral credentials, keyed by tab id. In-memory only —
   // never persisted to hosts.json. Cleared when the tab closes.
   const quickParams = ref<Record<string, QuickConnectParams>>({});
+
+  // --- VPS monitor per-tab state (v1.2.0). In-memory only; NEVER persisted to
+  // disk. Kept in the store (not the component) so the sparkline history and
+  // latest reading survive tab switches — the monitor panel instance is reused
+  // across tabs. All keys are cleared in closeTab. ---
+  const monitorInterval = ref<Record<string, number>>({}); // seconds; default 5
+  const monitorSnapshot = ref<Record<string, MonitorSnapshot | null>>({});
+  const monitorError = ref<Record<string, string>>({});
+  const monitorHistory = ref<Record<string, { cpu: number[]; mem: number[] }>>({});
+  const MONITOR_HISTORY_MAX = 40;
+
+  function setMonitorInterval(tabId: string, sec: number) {
+    monitorInterval.value[tabId] = sec;
+  }
+  function setMonitorSnapshot(tabId: string, snap: MonitorSnapshot | null) {
+    monitorSnapshot.value[tabId] = snap;
+  }
+  function setMonitorError(tabId: string, msg: string) {
+    monitorError.value[tabId] = msg;
+  }
+  // pushMonitorSample appends the latest CPU (only when valid) and memory
+  // percentages to the capped trend buffers. New array refs are assigned so the
+  // sparkline recomputes.
+  function pushMonitorSample(tabId: string, cpu: number | null, mem: number) {
+    const prev = monitorHistory.value[tabId] || { cpu: [], mem: [] };
+    const nextCpu = cpu === null ? prev.cpu.slice() : [...prev.cpu, cpu];
+    const nextMem = [...prev.mem, mem];
+    if (nextCpu.length > MONITOR_HISTORY_MAX) nextCpu.splice(0, nextCpu.length - MONITOR_HISTORY_MAX);
+    if (nextMem.length > MONITOR_HISTORY_MAX) nextMem.splice(0, nextMem.length - MONITOR_HISTORY_MAX);
+    monitorHistory.value[tabId] = { cpu: nextCpu, mem: nextMem };
+  }
+  // resetMonitor clears a tab's live reading + trend (on disconnect) so a later
+  // reconnect starts fresh. The interval preference is intentionally preserved.
+  function resetMonitor(tabId: string) {
+    monitorSnapshot.value[tabId] = null;
+    monitorError.value[tabId] = "";
+    delete monitorHistory.value[tabId];
+  }
 
   const activePane = computed(() => panes.value.find((p) => p.id === activePaneId.value)!);
 
@@ -159,6 +197,11 @@ export const useSessions = defineStore("sessions", () => {
     // Drop ephemeral Quick Connect credentials so the temp password does not
     // outlive the tab.
     delete quickParams.value[tabId];
+    // Drop all per-tab monitor state (no background monitoring after close).
+    delete monitorInterval.value[tabId];
+    delete monitorSnapshot.value[tabId];
+    delete monitorError.value[tabId];
+    delete monitorHistory.value[tabId];
     if (panes.value.length > 1) {
       panes.value = panes.value.filter((p) => p.tabIds.length > 0);
       if (!panes.value.find((p) => p.id === activePaneId.value)) {
@@ -205,6 +248,15 @@ export const useSessions = defineStore("sessions", () => {
     sftpRefreshTick,
     reconnectTick,
     quickParams,
+    monitorInterval,
+    monitorSnapshot,
+    monitorError,
+    monitorHistory,
+    setMonitorInterval,
+    setMonitorSnapshot,
+    setMonitorError,
+    pushMonitorSample,
+    resetMonitor,
     openInActivePane,
     openSavedTabIdle,
     openQuickInActivePane,

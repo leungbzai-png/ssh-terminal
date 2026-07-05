@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, watch } from "vue";
 import { useSessions } from "../stores/sessions";
-import type { MonitorSnapshot } from "../wails.d";
 import Sparkline from "./Sparkline.vue";
 
-// MonitorSidebar is the left-side, per-tab VPS monitor panel (v1.2.0).
-//
-// Commit 3 (this commit) builds the panel shell, the interval selector, and
-// every visual state (disconnected / loading / unsupported / ready). It does
-// NOT poll yet: `snapshot` stays null, so a connected tab shows the loading
-// skeleton. Commit 4 adds the poll loop that owns a setInterval keyed on
-// `intervalSec`, populates `snapshot`/`error`, and pushes samples into the
-// CPU/memory history buffers below — no other structural change needed.
+// MonitorSidebar is the left-side, per-tab VPS monitor panel (v1.2.0). It owns a
+// single poll timer that calls App.MonitorSample on the interval selected for
+// the tab; all sampled state lives in the sessions store (keyed by tab id) so it
+// survives tab switches — this component instance is reused across tabs. Polling
+// runs only while the tab is connected AND the panel is shown (hiding the panel
+// unmounts this component, stopping the timer), so there is no background
+// monitoring after disconnect or close.
 
 const props = defineProps<{ tabId: string }>();
 const sessions = useSessions();
@@ -19,16 +17,73 @@ const sessions = useSessions();
 const tab = computed(() => sessions.tabs[props.tabId]);
 const connected = computed(() => tab.value?.status === "open");
 
-// Polling interval option (seconds). Local to the panel; the commit-4 poll loop
-// lives here too and will read this directly.
+// Polling interval options (seconds); per-tab, default 5.
 const INTERVALS = [2, 5, 10] as const;
-const intervalSec = ref<number>(5);
+const intervalSec = computed(() => sessions.monitorInterval[props.tabId] ?? 5);
 
-// Live sample + trend buffers. Empty until commit 4 wires polling.
-const snapshot = ref<MonitorSnapshot | null>(null);
-const error = ref<string>("");
-const cpuHistory = ref<number[]>([]);
-const memHistory = ref<number[]>([]);
+// Live sample + trend buffers, read from the per-tab store state.
+const snapshot = computed(() => sessions.monitorSnapshot[props.tabId] ?? null);
+const error = computed(() => sessions.monitorError[props.tabId] ?? "");
+const cpuHistory = computed(() => sessions.monitorHistory[props.tabId]?.cpu ?? []);
+const memHistory = computed(() => sessions.monitorHistory[props.tabId]?.mem ?? []);
+
+// --- polling ---
+let timer: ReturnType<typeof setInterval> | null = null;
+let inFlight = false;
+
+function stopTimer() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+}
+
+// poll takes one sample for the current tab. It skips if a previous sample is
+// still in flight (so a slow link at 2s never stacks calls) and re-checks the
+// tab id / connection after the await to avoid writing a late result to the
+// wrong tab or after a disconnect.
+async function poll() {
+  if (inFlight) return;
+  const id = props.tabId;
+  if (sessions.tabs[id]?.status !== "open") return;
+  inFlight = true;
+  try {
+    const snap = await window.go.main.App.MonitorSample(id);
+    if (props.tabId !== id || sessions.tabs[id]?.status !== "open") return;
+    sessions.setMonitorSnapshot(id, snap);
+    sessions.setMonitorError(id, "");
+    if (snap.supported) {
+      sessions.pushMonitorSample(id, snap.cpuValid ? snap.cpuPercent : null, snap.memPercent);
+    }
+  } catch (e: any) {
+    // A drop mid-poll surfaces here; show it only while the tab is still open.
+    if (props.tabId === id && sessions.tabs[id]?.status === "open") {
+      sessions.setMonitorError(id, String(e?.message || e));
+    }
+  } finally {
+    inFlight = false;
+  }
+}
+
+// rebuild (re)starts the timer for the current tab/interval. Called whenever the
+// tab, connection state, or interval changes. When disconnected it just stops.
+function rebuild() {
+  stopTimer();
+  if (!connected.value) return;
+  poll(); // immediate first sample
+  timer = setInterval(poll, Math.max(1, intervalSec.value) * 1000);
+}
+
+watch([() => props.tabId, connected, intervalSec], rebuild, { immediate: true });
+// Clear a tab's stale reading/trend when it disconnects so a reconnect is fresh.
+watch(connected, (isConn) => {
+  if (!isConn) sessions.resetMonitor(props.tabId);
+});
+onBeforeUnmount(stopTimer);
+
+function selectInterval(s: number) {
+  sessions.setMonitorInterval(props.tabId, s);
+}
 
 function close() {
   sessions.toggleMonitor(props.tabId);
@@ -88,7 +143,7 @@ const cpuText = computed(() => {
           type="button"
           class="int-btn"
           :class="{ on: intervalSec === s }"
-          @click="intervalSec = s"
+          @click="selectInterval(s)"
         >
           {{ s }}s
         </button>
