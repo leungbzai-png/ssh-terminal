@@ -10,6 +10,9 @@ export interface TabSession {
   status: "idle" | "connecting" | "open" | "closed" | "error";
   error?: string;
   showSftp: boolean;
+  // showMonitor toggles the left VPS monitor sidebar for this tab (v1.2.0).
+  // Also acts as the per-tab enable/disable: monitoring only runs while shown.
+  showMonitor: boolean;
   // quick marks a Quick Connect tab whose credentials live only in memory
   // (see quickParams) and are never persisted.
   quick?: boolean;
@@ -72,6 +75,7 @@ export const useSessions = defineStore("sessions", () => {
       hostName: host.name || host.address,
       status: "connecting",
       showSftp: false,
+      showMonitor: false,
     };
     activePane.value.tabIds.push(tabId);
     activePane.value.activeTabId = tabId;
@@ -89,6 +93,7 @@ export const useSessions = defineStore("sessions", () => {
       hostName: host.name || host.address,
       status: "idle",
       showSftp: false,
+      showMonitor: false,
     };
     activePane.value.tabIds.push(tabId);
     if (!activePane.value.activeTabId) activePane.value.activeTabId = tabId;
@@ -104,6 +109,7 @@ export const useSessions = defineStore("sessions", () => {
       hostName: params.address,
       status: "connecting",
       showSftp: false,
+      showMonitor: false,
       quick: true,
     };
     quickParams.value[tabId] = params;
@@ -129,6 +135,11 @@ export const useSessions = defineStore("sessions", () => {
   function toggleSftp(tabId: string) {
     const t = tabs.value[tabId];
     if (t) t.showSftp = !t.showSftp;
+  }
+
+  function toggleMonitor(tabId: string) {
+    const t = tabs.value[tabId];
+    if (t) t.showMonitor = !t.showMonitor;
   }
 
   function closeTab(tabId: string) {
@@ -200,6 +211,7 @@ export const useSessions = defineStore("sessions", () => {
     setActiveTab,
     setTabStatus,
     toggleSftp,
+    toggleMonitor,
     closeTab,
     splitRight,
     closePane,

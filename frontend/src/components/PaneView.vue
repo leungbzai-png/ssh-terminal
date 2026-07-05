@@ -5,6 +5,7 @@ import { useSettings } from "../stores/settings";
 import TabBar from "./TabBar.vue";
 import Terminal from "./Terminal.vue";
 import SftpPanel from "./SftpPanel.vue";
+import MonitorSidebar from "./MonitorSidebar.vue";
 import CommandBar from "./CommandBar.vue";
 
 const props = defineProps<{ pane: Pane }>();
@@ -25,7 +26,12 @@ const activeTab = computed(() => {
     <div class="pane-body">
       <template v-if="activeTab">
         <div class="terminal-area">
-          <div class="split" :data-split="activeTab.showSftp ? 'on' : 'off'">
+          <div
+            class="split"
+            :data-monitor="activeTab.showMonitor ? 'on' : 'off'"
+            :data-sftp="activeTab.showSftp ? 'on' : 'off'"
+          >
+            <MonitorSidebar v-if="activeTab.showMonitor" :tab-id="activeTab.id" />
             <div class="term-col">
               <Terminal :tab-id="activeTab.id" />
               <CommandBar
@@ -68,15 +74,25 @@ const activeTab = computed(() => {
   display: grid;
   height: 100%;
   width: 100%;
+  /* Left VPS monitor column (v1.2.0) and right SFTP column widths. The SFTP
+     region itself decides side-by-side vs stacked via a container query. */
+  --mon-col: clamp(210px, 18vw, 300px);
+  --sftp-col: clamp(380px, 42vw, 780px);
 }
-.split[data-split="off"] {
+/* Column order matches child order: [MonitorSidebar?] term-col [SftpPanel?].
+   Changing these columns resizes the terminal element, whose ResizeObserver
+   refits xterm automatically. */
+.split[data-monitor="off"][data-sftp="off"] {
   grid-template-columns: 1fr;
 }
-.split[data-split="on"] {
-  /* Wider when the SFTP two-pane browser is open, capped so the terminal stays
-     usable; the SFTP region itself decides side-by-side vs stacked via a
-     container query. */
-  grid-template-columns: 1fr clamp(380px, 42vw, 780px);
+.split[data-monitor="on"][data-sftp="off"] {
+  grid-template-columns: var(--mon-col) 1fr;
+}
+.split[data-monitor="off"][data-sftp="on"] {
+  grid-template-columns: 1fr var(--sftp-col);
+}
+.split[data-monitor="on"][data-sftp="on"] {
+  grid-template-columns: var(--mon-col) 1fr var(--sftp-col);
 }
 .term-col {
   display: flex;

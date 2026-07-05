@@ -92,6 +92,17 @@ onUnmounted(() => window.removeEventListener("click", closeCtx));
       <button
         v-if="activeTab"
         class="icon-btn"
+        :class="{ on: activeTab.showMonitor }"
+        title="切换 VPS 监控"
+        @click="sessions.toggleMonitor(activeTab.id)"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12h4l3 8 4-16 3 8h4" />
+        </svg>
+      </button>
+      <button
+        v-if="activeTab"
+        class="icon-btn"
         :class="{ on: activeTab.showSftp }"
         title="切换 SFTP 文件浏览器"
         @click="sessions.toggleSftp(activeTab.id)"
